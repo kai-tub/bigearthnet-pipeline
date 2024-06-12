@@ -1,0 +1,43 @@
+# The main state directory of postgres
+unused/
+vqa/src/inputs/
+duck
+*.duck
+*.wal
+nextflow/work
+*.log
+.nextflow/
+subset*/
+result
+result/
+report.*
+state
+/.direnv/
+artifacts
+artifacts/
+inp_artifacts
+inp_artifacts/
+cache/
+artifacts/
+# Devenv
+.devenv*
+rasters/
+merged_rgb_tifs
+,*
+/tmp
+# TODO: Add this again once I am done tuning!
+devenv.local.nix
+*.gpkg
+pgadmin/
+/target
+data/
+json/
+sub_json/
+*.png
+*.tif*
+*.zstd
+# data that is too large
+/tracked-artifacts/patch_hashes.csv
+/tracked-artifacts/segmaps_hashes.csv
+
+

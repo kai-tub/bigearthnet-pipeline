@@ -1,0 +1,499 @@
+{
+	"clc_data": [
+		{
+			"code": "111",
+			"color": [
+				230,
+				0,
+				77,
+				255
+			],
+			"name_19": "Urban fabric",
+			"name_clc": "Continuous urban fabric"
+		},
+		{
+			"code": "112",
+			"color": [
+				255,
+				0,
+				0,
+				255
+			],
+			"name_19": "Urban fabric",
+			"name_clc": "Discontinuous urban fabric"
+		},
+		{
+			"code": "121",
+			"color": [
+				204,
+				77,
+				242,
+				255
+			],
+			"name_19": "Industrial or commercial units",
+			"name_clc": "Industrial or commercial units"
+		},
+		{
+			"code": "122",
+			"color": [
+				204,
+				0,
+				0,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Road and rail networks and associated land"
+		},
+		{
+			"code": "123",
+			"color": [
+				230,
+				204,
+				204,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Port areas"
+		},
+		{
+			"code": "124",
+			"color": [
+				230,
+				204,
+				230,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Airports"
+		},
+		{
+			"code": "131",
+			"color": [
+				166,
+				0,
+				204,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Mineral extraction sites"
+		},
+		{
+			"code": "132",
+			"color": [
+				166,
+				77,
+				0,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Dump sites"
+		},
+		{
+			"code": "133",
+			"color": [
+				255,
+				77,
+				255,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Construction sites"
+		},
+		{
+			"code": "141",
+			"color": [
+				255,
+				166,
+				255,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Green urban areas"
+		},
+		{
+			"code": "142",
+			"color": [
+				255,
+				230,
+				255,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Sport and leisure facilities"
+		},
+		{
+			"code": "211",
+			"color": [
+				255,
+				255,
+				168,
+				255
+			],
+			"name_19": "Arable land",
+			"name_clc": "Non-irrigated arable land"
+		},
+		{
+			"code": "212",
+			"color": [
+				255,
+				255,
+				0,
+				255
+			],
+			"name_19": "Arable land",
+			"name_clc": "Permanently irrigated land"
+		},
+		{
+			"code": "213",
+			"color": [
+				230,
+				230,
+				0,
+				255
+			],
+			"name_19": "Arable land",
+			"name_clc": "Rice fields"
+		},
+		{
+			"code": "221",
+			"color": [
+				230,
+				128,
+				0,
+				255
+			],
+			"name_19": "Permanent crops",
+			"name_clc": "Vineyards"
+		},
+		{
+			"code": "222",
+			"color": [
+				242,
+				166,
+				77,
+				255
+			],
+			"name_19": "Permanent crops",
+			"name_clc": "Fruit trees and berry plantations"
+		},
+		{
+			"code": "223",
+			"color": [
+				230,
+				166,
+				0,
+				255
+			],
+			"name_19": "Permanent crops",
+			"name_clc": "Olive groves"
+		},
+		{
+			"code": "231",
+			"color": [
+				230,
+				230,
+				77,
+				255
+			],
+			"name_19": "Pastures",
+			"name_clc": "Pastures"
+		},
+		{
+			"code": "241",
+			"color": [
+				255,
+				230,
+				166,
+				255
+			],
+			"name_19": "Permanent crops",
+			"name_clc": "Annual crops associated with permanent crops"
+		},
+		{
+			"code": "242",
+			"color": [
+				255,
+				230,
+				77,
+				255
+			],
+			"name_19": "Complex cultivation patterns",
+			"name_clc": "Complex cultivation patterns"
+		},
+		{
+			"code": "243",
+			"color": [
+				230,
+				204,
+				77,
+				255
+			],
+			"name_19": "Land principally occupied by agriculture, with significant areas of natural vegetation",
+			"name_clc": "Land principally occupied by agriculture, with significant areas of natural vegetation"
+		},
+		{
+			"code": "244",
+			"color": [
+				242,
+				204,
+				166,
+				255
+			],
+			"name_19": "Agro-forestry areas",
+			"name_clc": "Agro-forestry areas"
+		},
+		{
+			"code": "311",
+			"color": [
+				128,
+				255,
+				0,
+				255
+			],
+			"name_19": "Broad-leaved forest",
+			"name_clc": "Broad-leaved forest"
+		},
+		{
+			"code": "312",
+			"color": [
+				0,
+				166,
+				0,
+				255
+			],
+			"name_19": "Coniferous forest",
+			"name_clc": "Coniferous forest"
+		},
+		{
+			"code": "313",
+			"color": [
+				77,
+				255,
+				0,
+				255
+			],
+			"name_19": "Mixed forest",
+			"name_clc": "Mixed forest"
+		},
+		{
+			"code": "321",
+			"color": [
+				204,
+				242,
+				77,
+				255
+			],
+			"name_19": "Natural grassland and sparsely vegetated areas",
+			"name_clc": "Natural grassland"
+		},
+		{
+			"code": "322",
+			"color": [
+				166,
+				255,
+				128,
+				255
+			],
+			"name_19": "Moors, heathland and sclerophyllous vegetation",
+			"name_clc": "Moors and heathland"
+		},
+		{
+			"code": "323",
+			"color": [
+				166,
+				230,
+				77,
+				255
+			],
+			"name_19": "Moors, heathland and sclerophyllous vegetation",
+			"name_clc": "Sclerophyllous vegetation"
+		},
+		{
+			"code": "324",
+			"color": [
+				166,
+				242,
+				0,
+				255
+			],
+			"name_19": "Transitional woodland, shrub",
+			"name_clc": "Transitional woodland/shrub"
+		},
+		{
+			"code": "331",
+			"color": [
+				230,
+				230,
+				230,
+				255
+			],
+			"name_19": "Beaches, dunes, sands",
+			"name_clc": "Beaches, dunes, sands"
+		},
+		{
+			"code": "332",
+			"color": [
+				204,
+				204,
+				204,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Bare rock"
+		},
+		{
+			"code": "333",
+			"color": [
+				204,
+				255,
+				204,
+				255
+			],
+			"name_19": "Natural grassland and sparsely vegetated areas",
+			"name_clc": "Sparsely vegetated areas"
+		},
+		{
+			"code": "334",
+			"color": [
+				0,
+				0,
+				0,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Burnt areas"
+		},
+		{
+			"code": "335",
+			"color": [
+				166,
+				230,
+				204,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Glaciers and perpetual snow"
+		},
+		{
+			"code": "411",
+			"color": [
+				166,
+				166,
+				255,
+				255
+			],
+			"name_19": "Inland wetlands",
+			"name_clc": "Inland marshes"
+		},
+		{
+			"code": "412",
+			"color": [
+				77,
+				77,
+				255,
+				255
+			],
+			"name_19": "Inland wetlands",
+			"name_clc": "Peatbogs"
+		},
+		{
+			"code": "421",
+			"color": [
+				204,
+				204,
+				255,
+				255
+			],
+			"name_19": "Coastal wetlands",
+			"name_clc": "Salt marshes"
+		},
+		{
+			"code": "422",
+			"color": [
+				230,
+				230,
+				255,
+				255
+			],
+			"name_19": "Coastal wetlands",
+			"name_clc": "Salines"
+		},
+		{
+			"code": "423",
+			"color": [
+				166,
+				166,
+				230,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "Intertidal flats"
+		},
+		{
+			"code": "511",
+			"color": [
+				0,
+				204,
+				242,
+				255
+			],
+			"name_19": "Inland waters",
+			"name_clc": "Water courses"
+		},
+		{
+			"code": "512",
+			"color": [
+				128,
+				242,
+				230,
+				255
+			],
+			"name_19": "Inland waters",
+			"name_clc": "Water bodies"
+		},
+		{
+			"code": "521",
+			"color": [
+				0,
+				255,
+				166,
+				255
+			],
+			"name_19": "Marine waters",
+			"name_clc": "Coastal lagoons"
+		},
+		{
+			"code": "522",
+			"color": [
+				166,
+				255,
+				230,
+				255
+			],
+			"name_19": "Marine waters",
+			"name_clc": "Estuaries"
+		},
+		{
+			"code": "523",
+			"color": [
+				230,
+				242,
+				255,
+				255
+			],
+			"name_19": "Marine waters",
+			"name_clc": "Sea and ocean"
+		},
+		{
+			"code": "999",
+			"color": [
+				10,
+				10,
+				10,
+				255
+			],
+			"name_19": "UNLABELED",
+			"name_clc": "UNLABELED"
+		}
+	]
+}
