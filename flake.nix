@@ -415,7 +415,14 @@
 
       ben-data-finalizer = pkgs.writeShellApplication {
         name = "ben-data-finalizer";
-        runtimeInputs = [pkgs.nu pkgs.fd pkgs.gnutar flake-packages.bigearthnet-v1-s1s2-mapping];
+        runtimeInputs = [
+          pkgs.nu
+          pkgs.fd
+          pkgs.gnutar
+          flake-packages.bigearthnet-v1-s1s2-mapping
+          flake-packages.bigearthnet-v1-patches-with-seasonal-snow
+          flake-packages.bigearthnet-v1-patches-with-cloud-and-shadow
+        ];
         text = let
           p = pkgs.stdenvNoCC.mkDerivation {
             name = "ben-data-finalizer";
@@ -436,8 +443,10 @@
           echo "The 's2-root-dir' is the generated 'patches' directory"
           echo "from the 'ben-data-generator' step."
           echo "The other '*-mapping-file's can be found in the metadata directory."
-          echo "Except for the old-s1s2-mapping-file that can be found under:"
+          echo "Except for the old-* files that can be found under:"
           echo "${flake-packages.bigearthnet-v1-s1s2-mapping}"
+          echo "${flake-packages.bigearthnet-v1-patches-with-seasonal-snow}"
+          echo "${flake-packages.bigearthnet-v1-patches-with-cloud-and-shadow}"
           echo ""
           exec nu --no-config-file ${p}/ben-data-finalizer.nu "finalize" "$@"
         '';
@@ -540,6 +549,34 @@
         meta = {
           description = "The original BigEarthNet-v1.0 S2 to S1 patch name mapping.";
           homepage = "https://git.tu-berlin.de/rsim/BigEarthNet-MM_tools";
+        };
+      };
+      bigearthnet-v1-patches-with-cloud-and-shadow = pkgs.stdenvNoCC.mkDerivation {
+        name = "patches_with_cloud_and_shadow.csv";
+        src = ./tracked-artifacts/patches_with_cloud_and_shadow.csv;
+        phases = [
+          "installPhase"
+        ]; # fixup phase tries to update symlinks but that isn't possible!
+        installPhase = ''
+          ln -s $src $out
+        '';
+        meta = {
+          description = "The BigEarthNet-v1.0 list of patches with cloud and shadow.";
+          # homepage = "https://git.tu-berlin.de/rsim/BigEarthNet-MM_tools";
+        };
+      };
+      bigearthnet-v1-patches-with-seasonal-snow = pkgs.stdenvNoCC.mkDerivation {
+        name = "patches_with_seasonal_snow.csv";
+        src = ./tracked-artifacts/patches_with_seasonal_snow.csv;
+        phases = [
+          "installPhase"
+        ]; # fixup phase tries to update symlinks but that isn't possible!
+        installPhase = ''
+          ln -s $src $out
+        '';
+        meta = {
+          description = "The BigEarthNet-v1.0 list of patches with seasonal snow.";
+          # homepage = "https://git.tu-berlin.de/rsim/BigEarthNet-MM_tools";
         };
       };
 
