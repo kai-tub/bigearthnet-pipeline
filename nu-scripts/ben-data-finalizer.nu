@@ -57,6 +57,11 @@ def "is-unique" []: list<any> -> bool {
   ($inp | length) == ($inp | uniq | length)
 }
 
+# this is quite slow and could be significantly sped up
+# by utilizing the polars/dataframe features, but at the time
+# of writing, the next version (0.95) will deprecate it and
+# I think that this is okay-ish for now.
+# The better option would be to use duckdb
 export def "main generate-metadata-files" [
   target_dir: path
   patch_id_label_mapping_file: path
@@ -64,23 +69,24 @@ export def "main generate-metadata-files" [
   patch_id_split_mapping_file: path
   patch_id_country_mapping_file: path
   old_s1s2_mapping_file: path
+  old_patches_with_cloud_and_shadow_file: path
+  old_patches_with_seasonal_snow_file: path
 ] {
   mkdir $target_dir
   log debug $"Generating metadata files and storing results to: ($target_dir)"
   assert ($patch_id_label_mapping_file | path exists)
   assert ($patch_id_s2v1_mapping_file | path exists)
   assert ($patch_id_split_mapping_file | path exists)
-  assert ($old_s1s2_mapping_file | path exists)
   assert ($patch_id_country_mapping_file | path exists)
+  assert ($old_s1s2_mapping_file | path exists)
+  assert ($old_patches_with_cloud_and_shadow_file | path exists)
+  assert ($old_patches_with_seasonal_snow_file | path exists)
 
   let patch_id_label_mapping = open $patch_id_label_mapping_file
   $patch_id_label_mapping | check columns [patch_id label] $patch_id_label_mapping_file
   assert equal ($patch_id_label_mapping | length) (
     $patch_id_label_mapping | uniq | length
   ) "Patch ID Label mapping should only have unique patch_id label pairs!"
-
-  let patch_id_label_mapping_file = ($target_dir | path join patch_id_label_mapping.csv)
-  $patch_id_label_mapping | sort-by patch_id | save -f $patch_id_label_mapping_file 
 
   let patch_id_s2v1_mapping = open $patch_id_s2v1_mapping_file
   $patch_id_s2v1_mapping | check columns [patch_id s2v1_name] $patch_id_s2v1_mapping_file
@@ -95,35 +101,92 @@ export def "main generate-metadata-files" [
   $patch_id_country_mapping | check columns [patch_id country] $patch_id_country_mapping_file
   assert ($patch_id_country_mapping | get patch_id | is-unique)
 
-  # patch ids that are used in the label dataset!
-  let patch_ids = $patch_id_label_mapping | get patch_id | uniq | wrap patch_id
+  let labeled_patch_ids = $patch_id_label_mapping | get patch_id | uniq
+  assert greater ($labeled_patch_ids | length) 0 "Labeled patch IDs should not be empty!"
+
+  log debug "Deriving new cloud-and-shadow values"
+  let labeled_patch_ids_with_cloud_and_shadow = open --raw $old_patches_with_cloud_and_shadow_file
+    | from csv --noheaders
+    | rename s2v1_name
+    | join $patch_id_s2v1_mapping s2v1_name # will drop those that aren't available in the patch_id_s2v1_mapping
+    | get patch_id
+    | filter {|patch_id| $patch_id in $labeled_patch_ids}
+
+  assert greater ($labeled_patch_ids_with_cloud_and_shadow | length) 0 "Labeled patch IDs with cloud and shadow should not be empty!"
+
+  assert ($labeled_patch_ids_with_cloud_and_shadow | is-unique)
+  let aligned_patches_with_cloud_and_shadow_file = ($target_dir | path join patch_id_with_cloud_and_shadow.csv)
+  $labeled_patch_ids_with_cloud_and_shadow | wrap patch_id | sort-by patch_id | save -f $aligned_patches_with_cloud_and_shadow_file
+
+  log debug "Deriving new seasonal snow values"
+  let labeled_patch_ids_with_seasonal_snow = open --raw $old_patches_with_seasonal_snow_file
+    | from csv --noheaders
+    | rename s2v1_name
+    | join $patch_id_s2v1_mapping s2v1_name # will drop those that aren't available in the patch_id_s2v1_mapping
+    | get patch_id
+    | filter {|patch_id| $patch_id in $labeled_patch_ids}
+
+  assert greater ($labeled_patch_ids_with_seasonal_snow | length) 0 "Labeled patch IDs with seasonal snow should not be empty!"
+  assert ($labeled_patch_ids_with_seasonal_snow | is-unique)
+
+  let aligned_patches_with_seasonal_snow_file = ($target_dir | path join patch_id_with_seasonal_snow.csv)
+  $labeled_patch_ids_with_seasonal_snow | wrap patch_id | sort-by patch_id | save -f $aligned_patches_with_seasonal_snow_file
+
+  log debug "Deriving label ids without snow or clouds"
+  let labeled_patch_ids_without_snow_or_clouds = $labeled_patch_ids
+		| filter {|patch_id| $patch_id not-in $labeled_patch_ids_with_cloud_and_shadow and $patch_id not-in $labeled_patch_ids_with_seasonal_snow}
+
+  assert greater ($labeled_patch_ids_without_snow_or_clouds | length) 0 "Labeled patch IDs without seasonal snow or clouds should not be empty!"
+
+  # We want to REMOVE the labels for the snowy/cloudy patches, as we cannot detect the actual classes
+  # below the clouds (at least for S2) and snow.
+  log debug "Deriving Label mapping"
+  let patch_id_label_mapping_file = ($target_dir | path join patch_id_label_mapping.csv)
+  $patch_id_label_mapping
+    | join ($labeled_patch_ids_without_snow_or_clouds | wrap patch_id) patch_id
+    | sort-by patch_id
+    | save -f $patch_id_label_mapping_file 
+
+  # patch ids that are used in the label dataset
+  # we also want to keep the mappings for the cloudy/snowy patches!
+  log debug "Deriving S2 v1 mapping"
   let aligned_patch_id_s2v1_mapping = $patch_id_s2v1_mapping
-		| join $patch_ids patch_id
+		| join ($labeled_patch_ids | wrap patch_id) patch_id
 		| select patch_id s2v1_name
 		| sort-by patch_id
+
   assert ($aligned_patch_id_s2v1_mapping | get patch_id | is-unique)
   assert ($aligned_patch_id_s2v1_mapping | get s2v1_name | is-unique)
   let aligned_patch_id_s2v1_mapping_file = ($target_dir | path join patch_id_s2v1_mapping.csv)
   $aligned_patch_id_s2v1_mapping | save -f $aligned_patch_id_s2v1_mapping_file
 
-  let aligned_patch_id_split_mapping  = $patch_id_split_mapping
-    | join $patch_ids patch_id
-    | select patch_id split
-    | sort-by patch_id
-  assert ($aligned_patch_id_split_mapping | get patch_id | is-unique)
-  let aligned_patch_id_split_mapping_file = ($target_dir | path join patch_id_split_mapping.csv)
-  $aligned_patch_id_split_mapping | save -f $aligned_patch_id_split_mapping_file
-
+  # similarly we want to keep the country data for all labeled patches,
+  # including the cloudy/snowy patches
+  log debug "Deriving Country mapping"
   let aligned_patch_id_country_mapping  = $patch_id_country_mapping
-    | join $patch_ids patch_id
+    | join ($labeled_patch_ids | wrap patch_id) patch_id
     | select patch_id country
     | sort-by patch_id
+
   assert ($aligned_patch_id_country_mapping | get patch_id | is-unique)
   let aligned_patch_id_country_mapping_file = ($target_dir | path join patch_id_country_mapping.csv)
   $aligned_patch_id_country_mapping | save -f $aligned_patch_id_country_mapping_file
 
-  # IMPORTANT! This needs to use the newest/aligned version to derive the correct mapping!  
-  let aligned_patch_id_s1_mapping = patch-id-to-s1-mapping $aligned_patch_id_s2v1_mapping_file $old_s1s2_mapping_file 
+  # The split data should NOT contain the cloudy/snowy patches, as they cannot be correctly detected
+  # and used for training, validation, or testing.
+  log debug "Deriving Split mapping"
+  let aligned_patch_id_split_mapping  = $patch_id_split_mapping
+    | join ($labeled_patch_ids_without_snow_or_clouds | wrap patch_id) patch_id
+    | select patch_id split
+    | sort-by patch_id
+
+  assert ($aligned_patch_id_split_mapping | get patch_id | is-unique)
+  let aligned_patch_id_split_mapping_file = ($target_dir | path join patch_id_split_mapping.csv)
+  $aligned_patch_id_split_mapping | save -f $aligned_patch_id_split_mapping_file
+
+  # IMPORTANT! This needs to use the newest/aligned version to derive the correct mapping!
+  # Here, we also want to include the snowy/cloudy patches
+  let aligned_patch_id_s1_mapping = patch-id-to-s1-mapping $aligned_patch_id_s2v1_mapping_file $old_s1s2_mapping_file
   let aligned_patch_id_s1_mapping_file = ($target_dir | path join "patch_id_s1_mapping.csv")
   $aligned_patch_id_s1_mapping | save -f $aligned_patch_id_s1_mapping_file
 }
@@ -360,18 +423,17 @@ def "check segmentation-tar" [tar_file: path expected_ids: list<string>] {
   log debug $"Found no issues inside: ($tar_file)"
 }
 
-# Check if the output of the main script has an _aligned_ output
-# and that the tar files have the expected structure!
-export def "main check-output" [dataset_directory: path] {
-  cd $dataset_directory
-  assert ("Sentinel_1.tar" | path exists)
-  assert ("Sentinel_2.tar" | path exists)
-  assert ("Segmentation_maps.tar" | path exists)
+# Some metadata checks that should ensure that the metadata files
+# are aligned and unique
+export def "check metadata" [metadata_directory: path] {
+  cd $metadata_directory
   let patch_id_s1_mapping = open patch_id_s1_mapping.csv
   assert ($patch_id_s1_mapping  | get patch_id | is-unique)
   assert ($patch_id_s1_mapping  | get s1_name | is-unique)
 
   ## check the alignment of the metadata files
+  # remember s2v1_mapping, s1_mapping, country_mapping contain the cloudy/snowy patches
+  # whereas the label_mapping and the split_mapping do not!
   let patch_id_s2v1_mapping = open patch_id_s2v1_mapping.csv
   assert ($patch_id_s2v1_mapping | get patch_id | is-unique)
   assert ($patch_id_s2v1_mapping | get s2v1_name | is-unique)
@@ -384,11 +446,6 @@ export def "main check-output" [dataset_directory: path] {
   let patch_id_split_mapping = open patch_id_split_mapping.csv
   assert ($patch_id_split_mapping | get patch_id | is-unique)
 
-  assert equal ($patch_id_s1_mapping | length) ($patch_id_s1_mapping
-    | join $patch_id_split_mapping "patch_id"
-    | length
-  ) "patch_id_split_mapping is unaligned with patch_id_s1_mapping!"
-
   let patch_id_country_mapping = open patch_id_country_mapping.csv
   assert ($patch_id_country_mapping | get patch_id | is-unique)
 
@@ -398,12 +455,27 @@ export def "main check-output" [dataset_directory: path] {
   ) "patch_id_country_mapping is unaligned with patch_id_s1_mapping!"
 
   let patch_ids_from_label = open patch_id_label_mapping.csv | get patch_id | uniq | wrap patch_id
-  assert equal ($patch_id_s1_mapping | length) ($patch_id_s1_mapping
+  assert equal ($patch_id_split_mapping | length) ($patch_id_split_mapping
     | join $patch_ids_from_label "patch_id"
     | length
-  ) "patch_id_label_mapping is unaligned with patch_id_s1_mapping!"
-  
+  ) "patch_id_split_mapping is unaligned with patch_id_label_mapping!"
 
+  assert less ($patch_id_split_mapping | length) ($patch_id_s2v1_mapping | length) "Split mapping should be smaller the s2v1 mapping as it does not contain the cloudy/snowy patches!"
+
+  # also checks if the files exist!
+  assert not equal (open patch_id_with_seasonal_snow.csv | length) (open patch_id_with_cloud_and_shadow.csv | length) "Seasonal snow and shadow should have different lengths!"
+}
+
+# Check if the output of the main script has an _aligned_ output
+# and that the tar files have the expected structure!
+export def "main check-output" [dataset_directory: path] {
+  cd $dataset_directory
+  check metadata $dataset_directory
+  
+  let patch_id_s1_mapping = open patch_id_s1_mapping.csv
+  assert ("Sentinel_1.tar" | path exists)
+  assert ("Sentinel_2.tar" | path exists)
+  assert ("Segmentation_maps.tar" | path exists)
   # by checking if the tar files ONLY contain the expected files from the
   # mapping file, we implicitely check that they contain ONLY the same patches!
   check sentinel-tar "Sentinel_1.tar" ($patch_id_s1_mapping | get s1_name)
@@ -428,6 +500,8 @@ export def "main finalize" [
   --patch-id-split-mapping-file: path
   --patch-id-country-mapping-file: path
   --old-s1s2-mapping-file: path  
+  --old-patches-with-cloud-and-shadow-file: path
+  --old-patches-with-seasonal-snow-file: path
 ]: {
   if ([
     $target_dir
@@ -439,12 +513,14 @@ export def "main finalize" [
     $patch_id_split_mapping_file
     $patch_id_country_mapping_file
     $old_s1s2_mapping_file
+    $old_patches_with_cloud_and_shadow_file
+    $old_patches_with_seasonal_snow_file
   ] | any {is-empty}) {
     error make {
       msg: "Please provide all flags!"
     }
   }
-  main generate-metadata-files $target_dir $patch_id_label_mapping_file $patch_id_s2v1_mapping_file $patch_id_split_mapping_file $patch_id_country_mapping_file $old_s1s2_mapping_file
+  main generate-metadata-files $target_dir $patch_id_label_mapping_file $patch_id_s2v1_mapping_file $patch_id_split_mapping_file $patch_id_country_mapping_file $old_s1s2_mapping_file $old_patches_with_cloud_and_shadow_file $old_patches_with_seasonal_snow_file
   main build-archives $target_dir $s1_root_dir $s2_root_dir $segmentation_root_dir ($target_dir | path join "patch_id_s1_mapping.csv")
   main check-output $target_dir
 }
@@ -556,6 +632,7 @@ def build-tree [] {
     patch_id_split_mapping_file:$patch_id_split_mapping_file
     patch_id_country_mapping_file:$patch_id_country_mapping_file
     old_s1s2_mapping_file: $fake_s1s2_mapping_file
+    # FUTURE: Fix this bugga
   }
 }
 

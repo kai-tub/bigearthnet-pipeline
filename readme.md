@@ -166,7 +166,9 @@ nix run .#ben-data-finalizer -- \
   --patch-id-s2v1-mapping-file <PREV>/metadata/patch_id_s2v1_mapping.csv \
   --patch-id-split-mapping-file <PREV>/metadata/patch_id_split_mapping.csv \
   --patch-id-country-mapping-file <PREV>/metadata/patch_id_country_mapping.csv \
-  --old-s1s2-mapping-file /nix/store/ln2dxzpmvf8bdwb8snrpnq3bv1yrfdy7-s1s2_mapping.csv
+  --old-s1s2-mapping-file /nix/store/69ag0abnyaymgzhm2n9ap0y0kq7mqd58-s1s2_mapping.csv \
+  --old-patches-with-cloud-and-shadow-file /nix/store/zi5rw18q0g7chy40nzs20zmblmvvkf9h-patches_with_cloud_and_shadow.csv \
+  --old-patches-with-seasonal-snow-file /nix/store/1crxdk4ncacbdar05nlxcg0wvay05khv-patches_with_seasonal_snow.csv
 ```
 
 > [!TIP]
