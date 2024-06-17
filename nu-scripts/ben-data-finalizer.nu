@@ -231,10 +231,11 @@ def "build-archive s1" [
 
   # I have no idea why the inverse bracket expansion [^/] only
   # works with \+ and NOT *
+  # S1A_IW_GRDH_1SDV_20170613T165043_33UUP_74_73/
   let s1_tar_opts = $COMMON_TAR_OPTS ++ [
     -cf ($target_dir | path join "Sentinel_1.tar")
     "--files-from=/tmp/s1_tar.txt"
-    '--transform=s#\([^/]\+\)\(_[0-9]\+_[0-9]\+\)#Sentinel_1/\1/\1\2#'
+    '--transform=s#\([^/]\+\)\(_[0-9A-Z]\+_[0-9]\+_[0-9]\+\)#Sentinel_1/\1/\1\2#'
   ]
 
   # transform will match everything from start until `/` that ends with a _XX_YY 
