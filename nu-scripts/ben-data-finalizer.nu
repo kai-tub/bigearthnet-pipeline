@@ -229,11 +229,13 @@ def "build-archive s1" [
 
   log debug "Creating S1 archive"
 
+  let out_file = $target_dir | path join "Sentinel_1.tar"
+
   # I have no idea why the inverse bracket expansion [^/] only
   # works with \+ and NOT *
   # S1A_IW_GRDH_1SDV_20170613T165043_33UUP_74_73/
   let s1_tar_opts = $COMMON_TAR_OPTS ++ [
-    -cf ($target_dir | path join "Sentinel_1.tar")
+    -cf $out_file
     "--files-from=/tmp/s1_tar.txt"
     '--transform=s#\([^/]\+\)\(_[0-9A-Z]\+_[0-9]\+_[0-9]\+\)#Sentinel_1/\1/\1\2#'
   ]
@@ -245,6 +247,19 @@ def "build-archive s1" [
   # them into the 'tile' directory
   ^tar ...$s1_tar_opts
   log debug "Finished creating S1 archive"
+
+  # Assert that the layout structure is identical to the expected layout structure!
+  let path_components = ^tar --list --file $out_file
+    | lines
+    | first
+    | path split
+
+  # Sentinel_1/tile/<tile>_<patch>/<tile>_<patch>_V[VH].tif
+  assert equal ($path_components | length) 4
+  assert equal $path_components.0 "Sentinel_1"
+  assert str contains $path_components.2 $path_components.1
+  assert str contains $path_components.3 $path_components.2
+  assert equal ($path_components.3 =~ '.*_V[VH]\.tif$') true
 }
 
 def "build-archive s2" [
@@ -281,14 +296,29 @@ def "build-archive s2" [
   | sort
   | save -f /tmp/s2_tar.txt
   
+  let out_file = ($target_dir | path join "Sentinel_2.tar")
+  
   log debug "Creating S2 archive"
   let s2_tar_opts = $COMMON_TAR_OPTS ++ [
-    -cf ($target_dir | path join "Sentinel_2.tar")
+    -cf $out_file
     "--files-from=/tmp/s2_tar.txt"
     '--transform=s#\(.\+\)#Sentinel_2/\1#'
   ]
   ^tar ...$s2_tar_opts
   log debug "Finished creating S2 archive"
+
+    # Assert that the layout structure is identical to the expected layout structure!
+    let path_components = ^tar --list --file $out_file
+      | lines
+      | first
+      | path split
+
+    # Sentinel_2/tile/<tile>_<patch>/<tile>_<patch>_BXX.tiff
+    assert equal ($path_components | length) 4
+    assert equal $path_components.0 "Sentinel_2"
+    assert str contains $path_components.2 $path_components.1
+    assert str contains $path_components.3 $path_components.2
+    assert equal ($path_components.3 =~ '.*_B..\.tiff$') true
 }
 
 def "build-archive segmentation-maps" [
@@ -314,14 +344,34 @@ def "build-archive segmentation-maps" [
     | sort
     | save -f /tmp/seg_tar.txt
 
+    # decided to re-order the directory structure here.
+    # it could've also been fixed in the export function from the `data_generator`
+    # but I do believe that for the export function the previous version still makes sense
+    # but I also understand that this "aligned" version is easier for an end-user, as they can
+    # simply copy the resulting folder into the S2 folder and merge them in that way.
+    let out_file = $target_dir | path join "Segmentation_maps.tar"
     log debug "Creating segmentation map archive"
     let seg_tar_opts = $COMMON_TAR_OPTS ++ [
-      -cf ($target_dir | path join "Segmentation_maps.tar")
+      -cf $out_file
       "--files-from=/tmp/seg_tar.txt"
-      '--transform=s#\(.\+\)#Segmentation_maps/\1#'
+      # the following transform adds another directory level without the `_segmentation.tiff` suffix
+      # the first part is the tile component and the second part the name
+      '--transform=s#\([^/]\+\)/\(.\+\)\(_segmentation.tiff\)#Segmentation_maps/\1/\2/\2\3#'
     ]
     ^tar ...$seg_tar_opts
     log debug "Finished creating segmentation archive"
+
+    # Assert that the layout structure is identical to the expected layout structure!
+    let path_components = ^tar --list --file $out_file
+      | lines
+      | first 
+      | path split
+
+    # Segmentation_maps/tile/<tile>_<patch>/<tile>_<patch>_segmentation.tiff
+    assert equal ($path_components | length) 4
+    assert equal $path_components.0 "Segmentation_maps"
+    assert str contains $path_components.2 $path_components.1
+    assert equal $path_components.3 $"($path_components.2)_segmentation.tiff"
   }
 }
 
