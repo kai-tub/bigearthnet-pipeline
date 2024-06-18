@@ -314,11 +314,17 @@ def "build-archive segmentation-maps" [
     | sort
     | save -f /tmp/seg_tar.txt
 
+    # decided to re-order the directory structure here.
+    # it could've also been fixed in the export function from the `data_generator`
+    # but I do believe that for the export function the previous version still makes sense
+    # but I also understand that this "aligned" version is easier for an end-user, as they can
+    # simply copy the resulting folder into the S2 folder and merge them in that way.
     log debug "Creating segmentation map archive"
     let seg_tar_opts = $COMMON_TAR_OPTS ++ [
       -cf ($target_dir | path join "Segmentation_maps.tar")
       "--files-from=/tmp/seg_tar.txt"
-      '--transform=s#\(.\+\)#Segmentation_maps/\1#'
+      # the following transform adds another directory level without the `_segmentation.tiff` suffix
+      '--transform=s#\(.\+\)\(_segmentation.tiff\)#Segmentation_maps/\1/\1\2#'
     ]
     ^tar ...$seg_tar_opts
     log debug "Finished creating segmentation archive"
