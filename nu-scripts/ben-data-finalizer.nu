@@ -14,13 +14,8 @@ const COMMON_TAR_OPTS = [
   "--format=gnu"
 ]
 
-# What do I need?
-# patches with labels above threshold
-# extract those patches from global metadata files
-# so that the metadata files ONLY contain the data from patches that
-# extract those tiff files & segmentation files from generated DS
-# from the S2_S1 mapping, extract the relevant S1 patches AND re-organize
-# the directory layout to align with the new layout
+# HERE:
+# update the code to use duckdb for alignment to speed up the slow join operation
 
 # Align the new patch_id_s2v1 file with the old s1s2 mapping file
 # to derive the patch_id s1 mapping. Note that in the new version
@@ -270,7 +265,7 @@ def "build-archive s2" [
   log debug "Processing S2 data"
   cd $s2_root_dir
   # I need access the patch_id to filter out those that are unnecessary
-  # stored inside of the segmentation directory
+  # stored inside of the reference-map directory
   let s2_hits = ^fd  --threads=32 --follow --no-ignore 'S2[AB]_MSIL2A_.*_B..\.tiff?$'
     | lines | wrap fp
     | merge ($in.fp | path parse | get parent | path basename | wrap patch_id) 
@@ -313,53 +308,53 @@ def "build-archive s2" [
       | first
       | path split
 
-    # Sentinel_2/tile/<tile>_<patch>/<tile>_<patch>_BXX.tiff
+    # Sentinel_2/tile/<tile>_<patch>/<tile>_<patch>_BXX.tif
     assert equal ($path_components | length) 4
     assert equal $path_components.0 "Sentinel_2"
     assert str contains $path_components.2 $path_components.1
     assert str contains $path_components.3 $path_components.2
-    assert equal ($path_components.3 =~ '.*_B..\.tiff$') true
+    assert equal ($path_components.3 =~ '.*_B..\.tiff?$') true
 }
 
-def "build-archive segmentation-maps" [
+def "build-archive reference-maps" [
   target_dir: path
-  segmentation_root_dir: path, 
+  reference_maps_root_dir: path, 
   patch_ids: table<patch_id: string>
 ] {
-  log debug "Processing segmentation data"
+  log debug "Processing reference-maps data"
   do {
-    cd $segmentation_root_dir
-    let seg_hits = ^fd  --threads=32 --follow --no-ignore 'S2[AB]_MSIL2A_.*_segmentation\.tiff?$'
-      | lines | wrap fp | merge ($in.fp | path basename | parse --regex '(?P<patch_id>.*)_segmentation\.tiff?$')
+    cd $reference_maps_root_dir
+    let ref_maps_hits = ^fd  --threads=32 --follow --no-ignore 'S2[AB]_MSIL2A_.*_reference_map\.tiff?$'
+      | lines | wrap fp | merge ($in.fp | path basename | parse --regex '(?P<patch_id>.*)_reference_map\.tiff?$')
 
-    log debug $"Found ($seg_hits | length) segmentation files."
+    log debug $"Found ($ref_maps_hits | length) reference-map files."
 
-    let seg_compress_files = $seg_hits
+    let ref_maps_compress_files = $ref_maps_hits
       | join $patch_ids patch_id
       | get fp
-    assert less or equal ($seg_compress_files | length) ($seg_hits | length)
-    log debug $"After aligning with given input, will tar ($seg_compress_files | length) files"
+    assert less or equal ($ref_maps_compress_files | length) ($ref_maps_hits | length)
+    log debug $"After aligning with given input, will tar ($ref_maps_compress_files | length) files"
 
-    $seg_compress_files
+    $ref_maps_compress_files
     | sort
-    | save -f /tmp/seg_tar.txt
+    | save -f /tmp/ref_maps_tar.txt
 
     # decided to re-order the directory structure here.
     # it could've also been fixed in the export function from the `data_generator`
     # but I do believe that for the export function the previous version still makes sense
     # but I also understand that this "aligned" version is easier for an end-user, as they can
     # simply copy the resulting folder into the S2 folder and merge them in that way.
-    let out_file = $target_dir | path join "Segmentation_maps.tar"
-    log debug "Creating segmentation map archive"
-    let seg_tar_opts = $COMMON_TAR_OPTS ++ [
+    let out_file = $target_dir | path join "Reference_Maps.tar"
+    log debug "Creating reference-map archive"
+    let ref_maps_tar_opts = $COMMON_TAR_OPTS ++ [
       -cf $out_file
-      "--files-from=/tmp/seg_tar.txt"
-      # the following transform adds another directory level without the `_segmentation.tiff` suffix
+      "--files-from=/tmp/ref_maps_tar.txt"
+      # the following transform adds another directory level without the `_reference_map.tif` suffix
       # the first part is the tile component and the second part the name
-      '--transform=s#\([^/]\+\)/\(.\+\)\(_segmentation.tiff\)#Segmentation_maps/\1/\2/\2\3#'
+      '--transform=s#\(.\+\)#Reference_Maps/\1#'
     ]
-    ^tar ...$seg_tar_opts
-    log debug "Finished creating segmentation archive"
+    ^tar ...$ref_maps_tar_opts
+    log debug "Finished creating Reference_Maps archive"
 
     # Assert that the layout structure is identical to the expected layout structure!
     let path_components = ^tar --list --file $out_file
@@ -367,11 +362,11 @@ def "build-archive segmentation-maps" [
       | first 
       | path split
 
-    # Segmentation_maps/tile/<tile>_<patch>/<tile>_<patch>_segmentation.tiff
+    # Reference_Maps/tile/<tile>_<patch>/<tile>_<patch>_reference_map.tif
     assert equal ($path_components | length) 4
-    assert equal $path_components.0 "Segmentation_maps"
+    assert equal $path_components.0 "Reference_Maps"
     assert str contains $path_components.2 $path_components.1
-    assert equal $path_components.3 $"($path_components.2)_segmentation.tiff"
+    assert equal $path_components.3 $"($path_components.2)_reference_map.tif"
   }
 }
 
@@ -379,13 +374,13 @@ def "build-archive segmentation-maps" [
 # The `patch_id_s1_mapping_file` is used as the _single-source of truth_
 # for the alignment! The file will be used to select only 
 # those patches that are listed inside of the file, either
-# from the s1_name (for S1 files) or patch_id (for S2 and segmentation file) column.
+# from the s1_name (for S1 files) or patch_id (for S2 and reference map file) column.
 # The motivation is simple. The current PostgreSQL pipeline exports
 # _all_ valid (non no-data pixels) and BEN-aligned patches as S2 patches, irrespective
 # if label information is available (as this could be used for self-supervised training).
-# The segmentation directory contains all patches that contain _any_ label information
+# The reference maps directory contains all patches that contain _any_ label information
 # from the CLC2018 source. As not all BEN-aligned patches are covered by CLC2018
-# geometries, the segmentation directory contains fewer patches as the S2 directory.
+# geometries, the reference-maps directory contains fewer patches as the S2 directory.
 # However, our current goal is to provide aligned sets that all contain the same patches.
 # And in the "main build-metadata" step the `patch_id_s1_mapping_file` is aligned with the
 # _label_ data. And the label data is derived by setting a custom threshold and applying other
@@ -395,14 +390,14 @@ export def "main build-archives" [
   target_dir: path
   s1_root_dir: path
   s2_root_dir: path
-  segmentation_root_dir: path
+  reference_maps_root_dir: path
   patch_id_s1_mapping_file: path
 ] {
   log debug $"Generating archives and storing results to: ($target_dir)"
   mkdir $target_dir
   assert ($s1_root_dir | path exists)
   assert ($s2_root_dir | path exists)
-  assert ($segmentation_root_dir | path exists)
+  assert ($reference_maps_root_dir | path exists)
   assert ($patch_id_s1_mapping_file | path exists)
 
   let patch_id_s1_mapping = open $patch_id_s1_mapping_file
@@ -410,13 +405,13 @@ export def "main build-archives" [
 
   build-archive s1 $target_dir $s1_root_dir ($patch_id_s1_mapping | select s1_name)
   build-archive s2 $target_dir $s2_root_dir ($patch_id_s1_mapping | select patch_id)
-  build-archive segmentation-maps $target_dir $segmentation_root_dir ($patch_id_s1_mapping | select patch_id)
+  build-archive reference-maps $target_dir $reference_maps_root_dir ($patch_id_s1_mapping | select patch_id)
 }
 
 
 # some checks to ensure that the generated
 # output looks correct
-# 1. check that Sentinel_1, Sentinel_2, Segmentation_maps.tar
+# 1. check that Sentinel_1, Sentinel_2, Reference_Maps.tar
 #    all contain matching data and NOT more than necessary!
 # tars have tile/tile-patch-id/patch-file data
 # 2. report the directory structure in some way or another
@@ -428,7 +423,7 @@ def "check sentinel-tar" [tar_file: path expected_ids: list<string>] {
   let sentinel_files = tar --list -f $tar_file | lines
   let structure = $sentinel_files | parse --regex '^(?<dir>[^/]+)/(?<tile>[^/]+)/(?<patch>[^/]+)/(?<file>.+.tiff?)$'
   # -1 because of the root directory
-  assert equal ($sentinel_files | length) ($structure | length) "Difference while parseing expected tile/patch/patch_band.tiff structure!"
+  assert equal ($sentinel_files | length) ($structure | length) "Difference while parseing expected tile/patch/patch_band.tif structure!"
 
   let incorrect_structures = $structure | filter {|r| not (($r.patch | str contains $r.tile) and ($r.file | str contains $r.patch)) }
   if (($incorrect_structures | length) != 0) {
@@ -449,17 +444,17 @@ def "check sentinel-tar" [tar_file: path expected_ids: list<string>] {
   log debug $"Found no issues inside: ($tar_file)"
 }
 
-def "check segmentation-tar" [tar_file: path expected_ids: list<string>] {
+def "check reference-map-tar" [tar_file: path expected_ids: list<string>] {
   # assert sentinel_files layout structure
-  let seg_files = tar --list -f $tar_file | lines
-  let structure = $seg_files | parse --regex '^(?<dir>[^/]+)/(?<tile>[^/]+)/(?<patch>.+)_segmentation.tiff?$'
-  assert equal ($seg_files | length) ($structure | length) "Difference while parseing expected tile/patch_segmentation.tiff structure!"
+  let ref_maps_files = tar --list -f $tar_file | lines
+  let structure = $ref_maps_files | parse --regex '^(?<dir>[^/]+)/(?<tile>[^/]+)/(?<patch>.+)_reference_map.tiff?$'
+  assert equal ($ref_maps_files | length) ($structure | length) "Difference while parseing expected tile/patch_reference_map.tif structure!"
 
   let incorrect_structures = $structure | filter {|r| not (($r.patch | str contains $r.tile)) }
   if (($incorrect_structures | length) != 0) {
     print $incorrect_structures
     error make {
-      msg: "The naming linkage with <tile>/<segmented-patch>.tiff is violated!"
+      msg: "The naming linkage with <tile>/<reference-maps-patch>.tif is violated!"
     }
   }
   
@@ -526,12 +521,12 @@ export def "main check-output" [dataset_directory: path] {
   let patch_id_s1_mapping = open patch_id_s1_mapping.csv
   assert ("Sentinel_1.tar" | path exists)
   assert ("Sentinel_2.tar" | path exists)
-  assert ("Segmentation_maps.tar" | path exists)
+  assert ("Reference_Maps.tar" | path exists)
   # by checking if the tar files ONLY contain the expected files from the
   # mapping file, we implicitely check that they contain ONLY the same patches!
   check sentinel-tar "Sentinel_1.tar" ($patch_id_s1_mapping | get s1_name)
   check sentinel-tar "Sentinel_2.tar" ($patch_id_s1_mapping | get patch_id)
-  check segmentation-tar "Segmentation_maps.tar" ($patch_id_s1_mapping | get patch_id)
+  check reference-map-tar "Reference_Maps.tar" ($patch_id_s1_mapping | get patch_id)
 
   log debug "Everything is aligned!"
 }
@@ -545,7 +540,7 @@ export def "main finalize" [
   --target-dir: path
   --s1-root-dir: path
   --s2-root-dir: path
-  --segmentation-root-dir: path
+  --reference-maps-root-dir: path
   --patch-id-label-mapping-file: path
   --patch-id-s2v1-mapping-file: path
   --patch-id-split-mapping-file: path
@@ -558,7 +553,7 @@ export def "main finalize" [
     $target_dir
     $s1_root_dir
     $s2_root_dir
-    $segmentation_root_dir
+    $reference_maps_root_dir
     $patch_id_label_mapping_file
     $patch_id_s2v1_mapping_file
     $patch_id_split_mapping_file
@@ -572,7 +567,7 @@ export def "main finalize" [
     }
   }
   main generate-metadata-files $target_dir $patch_id_label_mapping_file $patch_id_s2v1_mapping_file $patch_id_split_mapping_file $patch_id_country_mapping_file $old_s1s2_mapping_file $old_patches_with_cloud_and_shadow_file $old_patches_with_seasonal_snow_file
-  main build-archives $target_dir $s1_root_dir $s2_root_dir $segmentation_root_dir ($target_dir | path join "patch_id_s1_mapping.csv")
+  main build-archives $target_dir $s1_root_dir $s2_root_dir $reference_maps_root_dir ($target_dir | path join "patch_id_s1_mapping.csv")
   main check-output $target_dir
 }
 
@@ -592,8 +587,8 @@ def build-tree [] {
   mkdir $s2_sample_patch_directory 
 
   let s2_sample_patch_files = [B01 B02 B03 B04 B05 B06 B07 B08 B8A B09 B11 B12]
-    | each { |band| $"($band).tiff" }
-    | append [ "invalid.tiff" "invalid.json" ]
+    | each { |band| $"($band).tif" }
+    | append [ "invalid.tif" "invalid.json" ]
     | each {
       |suffix|
       $s2_sample_patch_directory
@@ -618,20 +613,20 @@ def build-tree [] {
   let patch_id_country_mapping_file = $base_path | path join "patch_id_country_mapping.csv"
   $patch_id_country_mapping | save -f $patch_id_country_mapping_file
 
-  ### segmentation logic
+  ### reference-maps logic
 
-  let seg_base = $base_path | path join "segmaps"
-  let seg_sample_tile_directory = $seg_base
+  let ref_maps_base = $base_path | path join "ref_mapsmaps"
+  let ref_maps_sample_tile_directory = $ref_maps_base
     | path join "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER"
-  mkdir $seg_sample_tile_directory 
-  let seg_sample_files = [
-    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_47_segmentation.tiff"
-    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_11_47_segmentation.tiff" # extra segmentation file that should be skipped
-    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_47.tiff" # simulate accidental inclusion
-  ] | each {|f| $seg_sample_tile_directory | path join $f}
+  mkdir $ref_maps_sample_tile_directory 
+  let ref_maps_sample_files = [
+    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_47_reference_map.tif"
+    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_11_47_reference_map.tif" # extra reference-map file that should be skipped
+    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_47.tif" # simulate accidental inclusion
+  ] | each {|f| $ref_maps_sample_tile_directory | path join $f}
 
-  mkdir $seg_sample_tile_directory
-  $seg_sample_files | each {|f| touch $f}
+  mkdir $ref_maps_sample_tile_directory
+  $ref_maps_sample_files | each {|f| touch $f}
 
   ### s1 logic
 
@@ -677,7 +672,7 @@ def build-tree [] {
     base_path: $base_path
     s1_base_path: $s1_base
     s2_base_path: $s2_base
-    seg_base_path: $seg_base
+    ref_maps_base_path: $ref_maps_base
     patch_id_label_mapping_file: $patch_id_label_mapping_file
     patch_id_s2v1_mapping_file: $patch_id_s2v1_mapping_file
     patch_id_split_mapping_file:$patch_id_split_mapping_file
@@ -690,11 +685,11 @@ def build-tree [] {
 export def "main test" [] {
   let inp = build-tree
   let target_dir = $inp.base_path | path join "target_dir"
-  main finalize --target-dir $target_dir --s1-root-dir $inp.s1_base_path --s2-root-dir $inp.s2_base_path --segmentation-root-dir $inp.seg_base_path --patch-id-label-mapping-file $inp.patch_id_label_mapping_file --patch-id-s2v1-mapping-file $inp.patch_id_s2v1_mapping_file --patch-id-split-mapping-file $inp.patch_id_split_mapping_file --patch-id-country-mapping-file $inp.patch_id_country_mapping_file --old-s1s2-mapping-file $inp.old_s1s2_mapping_file
+  main finalize --target-dir $target_dir --s1-root-dir $inp.s1_base_path --s2-root-dir $inp.s2_base_path --reference-maps-root-dir $inp.ref_maps_base_path --patch-id-label-mapping-file $inp.patch_id_label_mapping_file --patch-id-s2v1-mapping-file $inp.patch_id_s2v1_mapping_file --patch-id-split-mapping-file $inp.patch_id_split_mapping_file --patch-id-country-mapping-file $inp.patch_id_country_mapping_file --old-s1s2-mapping-file $inp.old_s1s2_mapping_file
 
   assert equal (open ($target_dir | path join 'patch_id_country_mapping.csv') | length) 1
   let s1_files = ^tar --list -f ($target_dir | path join "Sentinel_1.tar") | lines
-  assert equal ($s1_files | length) 2 "Only one valid patch directory with two valid tiffs is used in the test"
+  assert equal ($s1_files | length) 2 "Only one valid patch directory with two valid tifs is used in the test"
   # log debug ($s1_files | table)
   $s1_files | each {
     |fp|
@@ -707,12 +702,11 @@ export def "main test" [] {
   }
 
   let s2_files = ^tar --list -f ($target_dir | path join "Sentinel_2.tar") | lines
-  assert equal ($s2_files | length) 12 "Only one valid patch directory with 12 valid tiffs is used in the test"
+  assert equal ($s2_files | length) 12 "Only one valid patch directory with 12 valid tifs is used in the test"
   # log debug ($s2_files | table)
 
-  let seg_files = ^tar --list -f ($target_dir | path join "Segmentation_maps.tar") | lines
-  assert equal ($seg_files | length) 1 "Only one valid segmentation map was used in the test"
-  # log debug ($seg_files | table)
+  let ref_maps_files = ^tar --list -f ($target_dir | path join "Reference_Maps.tar") | lines
+  assert equal ($ref_maps_files | length) 1 "Only one valid Reference-Map was used in the test"
   rm -r $inp.base_path
 }
 

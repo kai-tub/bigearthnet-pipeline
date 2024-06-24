@@ -1,6 +1,7 @@
--- psql script that exports the rastered segementation maps
+-- unused old reference script
+-- psql script that exports the rastered reference-maps
 -- of the clc-overlayed patches.
--- the output contains <patch_name>_segmentation.tiff, <HEX_CODED_RASTER>
+-- the output contains <patch_name>_reference_map.tif, <HEX_CODED_RASTER>
 
 set min_parallel_table_scan_size to 0;
 set min_parallel_index_scan_size to 0;
@@ -12,7 +13,7 @@ create temp view __overlay_rasters as
 		select *
 		-- Do not forget we have multiple rasters per patch-id!
 		-- the reference patches should have 10m resolution, could be configurable by user
-		-- it is just important that those pixel align with the segmentation maps
+		-- it is just important that those pixel align with the reference maps
 		from sentinel2_l2a_rasters s
 			where dataset_name like '10m%' 
 	), rasters as (
@@ -54,7 +55,7 @@ create temp view __overlay_rasters as
 		from merged_res m
 			inner join rasters r
 				on m.patch_id = r.patch_id
-	) select patch_identifier_to_text(patch_id, 2) || '_segmentation.tiff' as file_name,
+	) select patch_identifier_to_text(patch_id, 2) || '_reference_map.tif' as file_name,
 		encode(st_asgdalraster(
 				rast,
 				-- st_union(rast),

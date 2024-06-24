@@ -137,7 +137,7 @@ pueue add "\
   nix run .#ben-data-generator -- \
   --L2As-root-dir=<L2As_DOWNLOAD_PATH> \
   --export-patch-dir=<+TIFF_DIR> \
-  --export-segmentation-maps-dir=<+SEGMAPS_DIR> \
+  --export-reference-maps-dir=<+REFERENCE_MAPS_DIR> \
   --export-metadata-dir=<+METADATA_DIR> \
   --v1-metadata-dir=$BEN_V1_METADATA_DIR \
   --clc2018-gpkg-path=$CLC2018_PATH \
@@ -160,7 +160,7 @@ _merge_ the original Sentinel-1 data with the newly generated Sentinel-2 data.
 nix run .#ben-data-finalizer -- \
   --target-dir <ALIGNED_DIR> \
   --s2-root-dir <PREV>/tiffs/ \
-  --segmentation-root-dir <PREV>/segmaps/ \
+  --reference-maps-root-dir <PREV>/reference_maps/ \
   --s1-root-dir <EXTRACTED_S1_DIR> \
   --patch-id-label-mapping-file <PREV>/metadata/patch_id_label_mapping.csv \
   --patch-id-s2v1-mapping-file <PREV>/metadata/patch_id_s2v1_mapping.csv \
@@ -229,9 +229,9 @@ nix run .#tiff-hasher <path-to-patches> /tmp/patch_hashes.csv
 # if there is no output, then the files do not differ and the resulting tiff
 # files are identical to the previous run!
 diff /tmp/patch_hashes.csv.sha256 <repository>/tracked-artifacts/patch_hashes.csv.sha256
-# same for the segmentation patches
-nix run .#tiff-hasher <path-to-segmentation-dir> /tmp/segmaps_hashes.csv
-diff /tmp/segmaps_hashes.csv.sha256 <repository>/tracked-artifacts/segmaps_hashes.csv.sha256
+# same for the reference-maps patches
+nix run .#tiff-hasher <path-to-reference-maps-dir> /tmp/reference_maps.csv
+diff /tmp/reference_maps_hashes.csv.sha256 <repository>/tracked-artifacts/reference_maps_hashes.csv.sha256
 ```
 
 The specific CSV files are not tracked in `Git` but the associated checksum file is.

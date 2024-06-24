@@ -152,29 +152,28 @@ export def "main fill tile_patches_u2018_overlay_rasterization_geoms" []: string
 # requires all overlay results to be available!
 # This could be pipelined and the internal function could be called
 # immediately after the overlay results for a given tile have been processed.
-export def "main export segmentation_maps" [
+export def "main export reference-maps" [
   export_dir: string
   --parallel-workers: int = 6
 ]: nothing -> nothing {
-	log debug "About to run segmentation export jobs."
+	log debug "About to run reference-maps export jobs."
   let tiles = main filtered_s2_tiles
   $tiles | par-each --threads $parallel_workers {
     |tile|
-		log debug $"Exporting segmap for ($tile)"
-    $tile | main export segmentation_maps_from_clc_overlayed_patches ($export_dir)
+		log debug $"Exporting reference-map for ($tile)"
+    $tile | main export reference_maps_from_clc_overlayed_patches ($export_dir)
   }
-	log debug "Finished waiting for segmentation_maps."
+	log debug "Finished waiting for reference_maps."
 }
 
-export def "main export segmentation_maps_from_clc_overlayed_patches" [
+export def "main export reference_maps_from_clc_overlayed_patches" [
   export_dir: path
   # --overwrite: bool = false
 ]: string -> nothing {
   let tile = $in
-  log debug $"About to export segmentation results from ($tile) to ($export_dir)"
+  log debug $"About to export reference-map results from ($tile) to ($export_dir)"
 
   # let escaped_del = "'|'"
-  # let res = ^psql --quiet $"--variable=overlay_table=($table)" $"--file=($env.FILE_PWD)/db_u2018_label_overlays_export.sql"
   let res = $"\\copy \(select * from exportable_rasterized_clc_overlayed_patches\('($tile)'\)\) to pstdout with delimiter '|';"
     | ^psql --quiet --set ON_ERROR_STOP=on
     | lines | group 10 | each { 
@@ -182,16 +181,16 @@ export def "main export segmentation_maps_from_clc_overlayed_patches" [
       $r | parse '{filename}|{data}'
         | each {|x|
           let name_data = $x.filename
-            | parse --regex '(?P<src_tile>.*)(?P<coords_suffix>_\d+_\d+)_segmentation.tiff'
+            | parse --regex '(?P<src_tile>.*)(?P<coords_suffix>_\d+_\d+)_reference_map.tif'
             | first
-          let target_dir = $"($export_dir)/($name_data.src_tile)"
+          let target_dir = $"($export_dir)/($name_data.src_tile)/($name_data.src_file)($name_data.coords_suffix)"
           mkdir $target_dir
           $x.data | decode hex | save --force --raw $"($target_dir)/($x.filename)"
       }
     } | flatten
   if $res != [] {
     print $res
-    error make -u {msg: "Error during export of segmentation maps"}
+    error make -u {msg: "Error during export of reference maps"}
   }
   log info "Done exporting rasters!"
 }
@@ -200,11 +199,11 @@ export def "main export segmentation_maps_from_clc_overlayed_patches" [
 # with group=10 and cpress lzw + predictor 2 + num_threads=4 = 30s
 # with group=20 and cpress lzw + predictor 2 + num_threads=4 = 30s
 # with group=20 and cpress lzw + predictor 2 + num_threads=4 = 30s
-# file /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tiff                                             (base)
-# /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tiff: TIFF image data, little-endian, direntries=17, height=120, bps=16, compression=LZW, PhotometricIntepretation=BlackIsZero, width=120
-# DEFLATE: .rw-r--r-- 15k kaiclasen 13 Nov 10:11  /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tiff
-# LZW:     .rw-r--r-- 16k kaiclasen 13 Nov 10:09  /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tiff 
-# NONE:    .rw-r--r-- 29k kaiclasen 13 Nov 10:13  /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tiff
+# file /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tif                                             (base)
+# /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tif: TIFF image data, little-endian, direntries=17, height=120, bps=16, compression=LZW, PhotometricIntepretation=BlackIsZero, width=120
+# DEFLATE: .rw-r--r-- 15k kaiclasen 13 Nov 10:11  /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tif
+# LZW:     .rw-r--r-- 16k kaiclasen 13 Nov 10:09  /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tif 
+# NONE:    .rw-r--r-- 29k kaiclasen 13 Nov 10:13  /tmp/S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_00_B3.tif
 
 export def "main export patches_from_tile" [
   export_dir: path
@@ -220,7 +219,7 @@ export def "main export patches_from_tile" [
       $r | parse '{filename}|{data}'
         | each {|x|
           let name_data = $x.filename
-            | parse --regex '(?P<src_tile>.*)(?P<coords_suffix>_\d+_\d+)(?P<band_suffix>_B..).tiff'
+            | parse --regex '(?P<src_tile>.*)(?P<coords_suffix>_\d+_\d+)(?P<band_suffix>_B..).tiff?'
             | first
           let target_dir = $"($export_dir)/($name_data.src_tile)/($name_data.src_tile)($name_data.coords_suffix)"
           mkdir $target_dir
@@ -314,7 +313,6 @@ export def "main export patches" [
 
   $relevant_tiles | par-each --threads $parallel_workers {
     |t|
-    # $t | export_tiffs_from_tile
 		log debug $"Exporting ($t)"
     $t | main export patches_from_tile ($export_dir)
   }
@@ -351,6 +349,7 @@ export def "main insert sentinel2-l2a-raster" [
   let metadata = $in | sentinel2-l2a metadata
   let l2a_product_id = ($metadata | get metadata."".product_uri)
   let subdatasets = $metadata | get metadata.SUBDATASETS | transpose key value | where key =~ _NAME | get value | filter {|n| ':TCI:' not-in $n}
+  assert greater ($subdatasets | length) 0 "There should be more than 0 subdatasets!"
   log info $"About to process the following subdatasets: ($subdatasets | str join ' | ')"
   $subdatasets | each {
     |subdataset|
@@ -461,7 +460,7 @@ export def "main generate-all-data" [
 	--clc2018-gpkg-path: path # Path to the CLC2018 geopackage file
   --country-geojson-path: path # Path to the country geojson file, should match ne_*_admin_0_countries
 	--export-patch-dir: path # Target directory for patches (Requires several 100 GB!)
-	--export-segmentation-maps-dir: path # Target directory for segmentation maps (Requires a few GB!)
+	--export-reference-maps-dir: path # Target directory for reference maps (Requires a few GB!)
 	--export-metadata-dir: path # path where several metadata files will be stored
 ] {
   if ([
@@ -470,7 +469,7 @@ export def "main generate-all-data" [
     $clc2018_gpkg_path
     $country_geojson_path
     $export_patch_dir
-    $export_segmentation_maps_dir
+    $export_reference_maps_dir
     $export_metadata_dir
   ] | any {is-empty}) {
     error make {
@@ -480,7 +479,7 @@ export def "main generate-all-data" [
 
 	let tile_dirs = ($L2As_root_dir | path expand --strict) | ls $in | where name =~ 'S.*L2A.*.SAFE$' | get name
 	mkdir $export_patch_dir
-	mkdir $export_segmentation_maps_dir
+	mkdir $export_reference_maps_dir
 
 	$v1_metadata_dir | path expand --strict 
 	$clc2018_gpkg_path | path expand --strict
@@ -550,9 +549,9 @@ export def "main generate-all-data" [
 	main fill all_tile_patches_u2018_overlay_rasterization_geoms
 
 	# Took about 15min
-	# name: export_segs
+	# name: export_ref_maps
 	# depends: rasterization_geoms
-	main export segmentation_maps $export_segmentation_maps_dir
+	main export reference-maps $export_reference_maps_dir
 
 	# FUTURE: Make the underlying function idempotent!
 	'select update_ben19_patch_label_table();'
