@@ -430,6 +430,7 @@
               root = ./nu-scripts;
               include = [
                 "ben-data-finalizer.nu"
+                "ben-metadata-finalizer.sql"
               ];
             };
             installPhase = ''
