@@ -51,7 +51,7 @@ export def "main generate-metadata-files" [
   ^ln -sf $old_patches_with_seasonal_snow_file ($tmp_dir | path join patches_with_seasonal_snow.csv)
   # FUTURE: think about how a closure can be written to delete the tmp_dir even on an error
   # but this isn't super important, as I am only creating symbolic links either way
-  with-env ['BEN_UNALIGNED_METADATA_DIR': $tmp_dir] {
+  with-env {'BEN_UNALIGNED_METADATA_DIR': $tmp_dir} {
     mkdir $target_dir
     log debug $"Generating metadata files and storing results to: ($target_dir)"
     cd $target_dir
