@@ -159,8 +159,8 @@ _merge_ the original Sentinel-1 data with the newly generated Sentinel-2 data.
 ```bash
 nix run .#ben-data-finalizer -- \
   --target-dir <ALIGNED_DIR> \
-  --s2-root-dir <PREV>/tiffs/ \
-  --reference-maps-root-dir <PREV>/reference_maps/ \
+  --s2-root-dir <+TIFF_DIR> \
+  --reference-maps-root-dir <+REFERENCE_MAPS_DIR> \
   --s1-root-dir <EXTRACTED_S1_DIR> \
   --patch-id-label-mapping-file <PREV>/metadata/patch_id_label_mapping.csv \
   --patch-id-s2v1-mapping-file <PREV>/metadata/patch_id_s2v1_mapping.csv \
