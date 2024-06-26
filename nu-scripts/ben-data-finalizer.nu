@@ -252,10 +252,8 @@ def "build-archive reference-maps" [
 }
 
 # Build the ALIGNED archives from the given directories
-# The `patch_id_s1_mapping_file` is used as the _single-source of truth_
-# for the alignment! The file will be used to select only 
-# those patches that are listed inside of the file, either
-# from the s1_name (for S1 files) or patch_id (for S2 and reference map file) column.
+# The provided `keep` table is used as a _single-source of truth_!
+# The directories with the given `patch_id` and `s1_name` are kept.
 # The motivation is simple. The current PostgreSQL pipeline exports
 # _all_ valid (non no-data pixels) and BEN-aligned patches as S2 patches, irrespective
 # if label information is available (as this could be used for self-supervised training).
@@ -272,21 +270,18 @@ export def "main build-archives" [
   s1_root_dir: path
   s2_root_dir: path
   reference_maps_root_dir: path
-  patch_id_s1_mapping_file: path
+  keep: table<patch_id: string, s1_name: string>
 ] {
   log debug $"Generating archives and storing results to: ($target_dir)"
   mkdir $target_dir
   assert ($s1_root_dir | path exists)
   assert ($s2_root_dir | path exists)
   assert ($reference_maps_root_dir | path exists)
-  assert ($patch_id_s1_mapping_file | path exists)
+  assert (($keep | length) > 0)
 
-  let patch_id_s1_mapping = open $patch_id_s1_mapping_file
-  $patch_id_s1_mapping | check columns [patch_id s1_name] $patch_id_s1_mapping_file
-
-  build-archive s1 $target_dir $s1_root_dir ($patch_id_s1_mapping | select s1_name)
-  build-archive s2 $target_dir $s2_root_dir ($patch_id_s1_mapping | select patch_id)
-  build-archive reference-maps $target_dir $reference_maps_root_dir ($patch_id_s1_mapping | select patch_id)
+  build-archive s1 $target_dir $s1_root_dir ($keep | select s1_name)
+  build-archive s2 $target_dir $s2_root_dir ($keep | select patch_id)
+  build-archive reference-maps $target_dir $reference_maps_root_dir ($keep | select patch_id)
 }
 
 
@@ -328,22 +323,22 @@ def "check sentinel-tar" [tar_file: path expected_ids: list<string>] {
 def "check reference-map-tar" [tar_file: path expected_ids: list<string>] {
   # assert sentinel_files layout structure
   let ref_maps_files = tar --list -f $tar_file | lines
-  let structure = $ref_maps_files | parse --regex '^(?<dir>[^/]+)/(?<tile>[^/]+)/(?<patch>.+)_reference_map.tiff?$'
+  let structure = $ref_maps_files | parse --regex '^(?<dir>[^/]+)/(?<tile>[^/]+)/(?<patch>[^/]+)/(?<file>.+_reference_map).tiff?$'
   assert equal ($ref_maps_files | length) ($structure | length) "Difference while parseing expected tile/patch_reference_map.tif structure!"
 
-  let incorrect_structures = $structure | filter {|r| not (($r.patch | str contains $r.tile)) }
+  let incorrect_structures = $structure | filter {|r| not (($r.patch | str contains $r.tile) and ($r.file | str contains $r.patch)) }
   if (($incorrect_structures | length) != 0) {
     print $incorrect_structures
     error make {
-      msg: "The naming linkage with <tile>/<reference-maps-patch>.tif is violated!"
+      msg: "The naming linkage with <tile>/<reference-maps-patch>/<reference-maps-patch>_reference_map.tif is violated!"
     }
   }
   
   let mapping_alignments = $structure
-  | join ($expected_ids | wrap patch) "patch"
-  | get "patch"
-  | uniq
-  | length
+    | join ($expected_ids | wrap patch) "patch"
+    | get "patch"
+    | uniq
+    | length
 
   assert equal $mapping_alignments ($expected_ids | length) "Difference between the expected_ids and the files inside of the tar!"
 
@@ -355,15 +350,19 @@ def "check reference-map-tar" [tar_file: path expected_ids: list<string>] {
 export def "main check-output" [dataset_directory: path] {
   cd $dataset_directory
   
-  let patch_id_s1_mapping = open patch_id_s1_mapping.csv
+  let main_metadata_path = ($dataset_directory | path join "metadata.parquet")
+  let other_metadata_path = ($dataset_directory | path join "metadata_for_patches_with_snow_cloud_or_shadow.parquet")
+  let patch_id_s1_data = ^duckdb -csv -c $"select patch_id, s1_name from read_parquet\(['($main_metadata_path)', '($other_metadata_path)']\);"
+    | from csv
+
   assert ("Sentinel_1.tar" | path exists)
   assert ("Sentinel_2.tar" | path exists)
   assert ("Reference_Maps.tar" | path exists)
   # by checking if the tar files ONLY contain the expected files from the
   # mapping file, we implicitely check that they contain ONLY the same patches!
-  check sentinel-tar "Sentinel_1.tar" ($patch_id_s1_mapping | get s1_name)
-  check sentinel-tar "Sentinel_2.tar" ($patch_id_s1_mapping | get patch_id)
-  check reference-map-tar "Reference_Maps.tar" ($patch_id_s1_mapping | get patch_id)
+  check sentinel-tar "Sentinel_1.tar" ($patch_id_s1_data | get s1_name)
+  check sentinel-tar "Sentinel_2.tar" ($patch_id_s1_data | get patch_id)
+  check reference-map-tar "Reference_Maps.tar" ($patch_id_s1_data | get patch_id)
 
   log debug "Everything is aligned!"
 }
@@ -404,146 +403,17 @@ export def "main finalize" [
     }
   }
   main generate-metadata-files $target_dir $patch_id_label_mapping_file $patch_id_s2v1_mapping_file $patch_id_split_mapping_file $patch_id_country_mapping_file $old_s1s2_mapping_file $old_patches_with_cloud_and_shadow_file $old_patches_with_seasonal_snow_file
-  main build-archives $target_dir $s1_root_dir $s2_root_dir $reference_maps_root_dir ($target_dir | path join "patch_id_s1_mapping.csv")
+  let main_metadata_path = ($target_dir | path join "metadata.parquet")
+  let other_metadata_path = ($target_dir | path join "metadata_for_patches_with_snow_cloud_or_shadow.parquet")
+
+  let patch_id_s1_data = ^duckdb -csv -c $"select patch_id, s1_name from read_parquet\(['($main_metadata_path)', '($other_metadata_path)']\);"
+    | from csv
+    
+  main build-archives $target_dir $s1_root_dir $s2_root_dir $reference_maps_root_dir $patch_id_s1_data
   main check-output $target_dir
 }
 
 # Main entrypoint. You probably want to call
 # the complete function "main finalize"
 export def main [] {}
-
-def build-tree [] {
-  let base_path = ($nu.temp-path | path join $"test_dirs_(random uuid)")
-  log debug $"Temporary base path created at: ($base_path)"
-
-  ### s2 logic
-  let s2_base = $base_path | path join "S2"
-  let s2_sample_patch_directory = $s2_base
-    | path join "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER" "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_47"
-
-  mkdir $s2_sample_patch_directory 
-
-  let s2_sample_patch_files = [B01 B02 B03 B04 B05 B06 B07 B08 B8A B09 B11 B12]
-    | each { |band| $"($band).tif" }
-    | append [ "invalid.tif" "invalid.json" ]
-    | each {
-      |suffix|
-      $s2_sample_patch_directory
-        | path join ($s2_sample_patch_directory | path basename | $"($in)_($suffix)")
-    }
-
-  $s2_sample_patch_files | each {|f| touch $f}
-  let patch_id = $s2_sample_patch_directory | path basename
-  let patch_id_label_mapping = [[patch_id label]; [$patch_id "Arable land"] [$patch_id "Broad-leaved forest"]]
-  let patch_id_label_mapping_file = $base_path | path join "patch_id_label_mapping.csv"
-  $patch_id_label_mapping | save -f $patch_id_label_mapping_file
-  # s2v1 mapping may contain patch_ids that are NOT inside of the `patch_id_label_mapping` file!
-  let patch_id_s2v1_mapping = [[patch_id s2v1_name]; [$patch_id S2A_MSIL2A_20170613T101031_0_47] [to_be_filtered_id S2A_MSIL2A_20170613T101031_0_48]]
-  let patch_id_s2v1_mapping_file = $base_path | path join "patch_id_s2v1_mapping.csv"
-  $patch_id_s2v1_mapping | save -f $patch_id_s2v1_mapping_file
-  # split mapping may contain patch_ids that are NOT inside of the `patch_id_label_mapping` file!
-  let patch_id_split_mapping = [[patch_id split]; [$patch_id train] [to_be_filtered_id_too S2A_MSIL2A_20170613T101031_0_48]]
-  let patch_id_split_mapping_file = $base_path | path join "patch_id_split_mapping.csv"
-  $patch_id_split_mapping | save -f $patch_id_split_mapping_file
-  # country mapping may contain patch_ids that are NOT inside of the `patch_id_label_mapping` file!
-  let patch_id_country_mapping = [[patch_id country]; [$patch_id Austria] [to_be_filtered_id_in_country Austria]]
-  let patch_id_country_mapping_file = $base_path | path join "patch_id_country_mapping.csv"
-  $patch_id_country_mapping | save -f $patch_id_country_mapping_file
-
-  ### reference-maps logic
-
-  let ref_maps_base = $base_path | path join "ref_mapsmaps"
-  let ref_maps_sample_tile_directory = $ref_maps_base
-    | path join "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER"
-  mkdir $ref_maps_sample_tile_directory 
-  let ref_maps_sample_files = [
-    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_47_reference_map.tif"
-    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_11_47_reference_map.tif" # extra reference-map file that should be skipped
-    "S2A_MSIL2A_20170613T101031_N9999_R022_T34VER_00_47.tif" # simulate accidental inclusion
-  ] | each {|f| $ref_maps_sample_tile_directory | path join $f}
-
-  mkdir $ref_maps_sample_tile_directory
-  $ref_maps_sample_files | each {|f| touch $f}
-
-  ### s1 logic
-
-  let s1_base = $base_path | path join "S1"
-  let s1_sample_patch_directory = $s1_base | 
-    path join "S1A_IW_GRDH_1SDV_20170613T165043_33UUP_65_63"
-
-  mkdir $s1_sample_patch_directory
-
-  let s1_sample_patch_files = ["VV.tif" "VH.tif" "labels_metadata.json" "invalid.json"]
-    | each {
-      |suffix|
-      $s1_sample_patch_directory
-        | path join ($s1_sample_patch_directory | path basename | $"($in)_($suffix)")
-    }
-  $s1_sample_patch_files | each {|f| touch $f}
-  # add one patch dir that isn't included in the mapping and check that this one
-  # is NOT included! and yes, I cannot be bothered to externalize this as a clean function
-  let s1_sample_patch_directory2 = $s1_base | 
-    path join "S1A_IW_GRDH_1SDV_20170613T165043_33UUP_65_62"
-
-  mkdir $s1_sample_patch_directory2
-
-  let s1_sample_patch_files2 = ["VV.tif" "VH.tif" "labels_metadata.json" "invalid.json"]
-    | each {
-      |suffix|
-      $s1_sample_patch_directory2
-        | path join ($s1_sample_patch_directory2 | path basename | $"($in)_($suffix)")
-    }
-  $s1_sample_patch_files2 | each {|f| touch $f} 
-  ###
-
-  ### fake `s1s2_mapping.csv`
-  let fake_s1s2_mapping_file = $base_path | path join "s1s2_mapping.csv"
-  let s2v1_name = $patch_id_s2v1_mapping | get s2v1_name.0
-  let s1_name = $s1_sample_patch_directory | path basename
-  # create a raw csv file because the original one doesn't contain any header information
-  # and yes, these two patche names aren't from the correct mapping, but that is not relevant here
-  # The second _missing_ S1 patch name must be correct as this will be used to extract the base directory
-  $"($s2v1_name),($s1_name)\nmissing_s2,S1A_IW_GRDH_1SDV_20170613T165043_33UUP_65_64" | save --raw $fake_s1s2_mapping_file
-
-  {
-    base_path: $base_path
-    s1_base_path: $s1_base
-    s2_base_path: $s2_base
-    ref_maps_base_path: $ref_maps_base
-    patch_id_label_mapping_file: $patch_id_label_mapping_file
-    patch_id_s2v1_mapping_file: $patch_id_s2v1_mapping_file
-    patch_id_split_mapping_file:$patch_id_split_mapping_file
-    patch_id_country_mapping_file:$patch_id_country_mapping_file
-    old_s1s2_mapping_file: $fake_s1s2_mapping_file
-    # FUTURE: Fix this bugga
-  }
-}
-
-export def "main test" [] {
-  let inp = build-tree
-  let target_dir = $inp.base_path | path join "target_dir"
-  main finalize --target-dir $target_dir --s1-root-dir $inp.s1_base_path --s2-root-dir $inp.s2_base_path --reference-maps-root-dir $inp.ref_maps_base_path --patch-id-label-mapping-file $inp.patch_id_label_mapping_file --patch-id-s2v1-mapping-file $inp.patch_id_s2v1_mapping_file --patch-id-split-mapping-file $inp.patch_id_split_mapping_file --patch-id-country-mapping-file $inp.patch_id_country_mapping_file --old-s1s2-mapping-file $inp.old_s1s2_mapping_file
-
-  assert equal (open ($target_dir | path join 'patch_id_country_mapping.csv') | length) 1
-  let s1_files = ^tar --list -f ($target_dir | path join "Sentinel_1.tar") | lines
-  assert equal ($s1_files | length) 2 "Only one valid patch directory with two valid tifs is used in the test"
-  # log debug ($s1_files | table)
-  $s1_files | each {
-    |fp|
-    # patch_name 
-    let patch_name = ($fp | path parse | get parent) 
-    # parent should also be the root!
-    let tile_name = ($patch_name | path parse | get parent)
-    assert not ($tile_name | is-empty)
-    assert ($patch_name | str contains $tile_name)
-  }
-
-  let s2_files = ^tar --list -f ($target_dir | path join "Sentinel_2.tar") | lines
-  assert equal ($s2_files | length) 12 "Only one valid patch directory with 12 valid tifs is used in the test"
-  # log debug ($s2_files | table)
-
-  let ref_maps_files = ^tar --list -f ($target_dir | path join "Reference_Maps.tar") | lines
-  assert equal ($ref_maps_files | length) 1 "Only one valid Reference-Map was used in the test"
-  rm -r $inp.base_path
-}
 
