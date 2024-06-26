@@ -49,7 +49,6 @@ with any_cte as (
 select *
 from non_zero_cte_check('patch_id_label_mapping is empty!');
 
-drop table patch_id_s2v1_mapping ;
 create temporary table patch_id_s2v1_mapping (patch_id varchar primary key, s2v1_name varchar not null unique);
 -- could've also used copy instead of insert into by name
 insert into patch_id_s2v1_mapping by name (select * from read_csv('patch_id_s2v1_mapping.csv'));
