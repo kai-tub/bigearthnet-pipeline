@@ -183,7 +183,7 @@ export def "main export reference_maps_from_clc_overlayed_patches" [
           let name_data = $x.filename
             | parse --regex '(?P<src_tile>.*)(?P<coords_suffix>_\d+_\d+)_reference_map.tif'
             | first
-          let target_dir = $"($export_dir)/($name_data.src_tile)/($name_data.src_file)($name_data.coords_suffix)"
+          let target_dir = $"($export_dir)/($name_data.src_tile)/($name_data.src_tile)($name_data.coords_suffix)"
           mkdir $target_dir
           $x.data | decode hex | save --force --raw $"($target_dir)/($x.filename)"
       }
