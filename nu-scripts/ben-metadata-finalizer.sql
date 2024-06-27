@@ -172,6 +172,8 @@ select case
 		'result length test passed'
 	end as result;
 
+set threads = 1;;
+
 copy (
 	select *
 	from result
