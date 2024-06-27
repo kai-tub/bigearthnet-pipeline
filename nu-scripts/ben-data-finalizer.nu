@@ -114,7 +114,7 @@ def "build-archive s1" [
 
   log debug "Creating S1 archive"
 
-  let out_file = $target_dir | path join "Sentinel_1.tar"
+  let out_file = $target_dir | path join "BigEarthNet-S1.tar"
 
   # I have no idea why the inverse bracket expansion [^/] only
   # works with \+ and NOT *
@@ -122,7 +122,7 @@ def "build-archive s1" [
   let s1_tar_opts = $COMMON_TAR_OPTS ++ [
     -cf $out_file
     "--files-from=/tmp/s1_tar.txt"
-    '--transform=s#\([^/]\+\)\(_[0-9A-Z]\+_[0-9]\+_[0-9]\+\)#Sentinel_1/\1/\1\2#'
+    '--transform=s#\([^/]\+\)\(_[0-9A-Z]\+_[0-9]\+_[0-9]\+\)#BigEarthNet-S1/\1/\1\2#'
   ]
 
   # transform will match everything from start until `/` that ends with a _XX_YY 
@@ -139,9 +139,9 @@ def "build-archive s1" [
     | first
     | path split
 
-  # Sentinel_1/tile/<tile>_<patch>/<tile>_<patch>_V[VH].tif
+  # BigEarthNet-S1/tile/<tile>_<patch>/<tile>_<patch>_V[VH].tif
   assert equal ($path_components | length) 4
-  assert equal $path_components.0 "Sentinel_1"
+  assert equal $path_components.0 "BigEarthNet-S1"
   assert str contains $path_components.2 $path_components.1
   assert str contains $path_components.3 $path_components.2
   assert equal ($path_components.3 =~ '.*_V[VH]\.tif$') true
@@ -181,13 +181,13 @@ def "build-archive s2" [
   | sort
   | save -f /tmp/s2_tar.txt
   
-  let out_file = ($target_dir | path join "Sentinel_2.tar")
+  let out_file = ($target_dir | path join "BigEarthNet-S2.tar")
   
   log debug "Creating S2 archive"
   let s2_tar_opts = $COMMON_TAR_OPTS ++ [
     -cf $out_file
     "--files-from=/tmp/s2_tar.txt"
-    '--transform=s#\(.\+\)#Sentinel_2/\1#'
+    '--transform=s#\(.\+\)#BigEarthNet-S2/\1#'
   ]
   ^tar ...$s2_tar_opts
   log debug "Finished creating S2 archive"
@@ -198,9 +198,9 @@ def "build-archive s2" [
       | first
       | path split
 
-    # Sentinel_2/tile/<tile>_<patch>/<tile>_<patch>_BXX.tif
+    # BigEarthNet-S2/tile/<tile>_<patch>/<tile>_<patch>_BXX.tif
     assert equal ($path_components | length) 4
-    assert equal $path_components.0 "Sentinel_2"
+    assert equal $path_components.0 "BigEarthNet-S2"
     assert str contains $path_components.2 $path_components.1
     assert str contains $path_components.3 $path_components.2
     assert equal ($path_components.3 =~ '.*_B..\.tiff?$') true
@@ -296,13 +296,13 @@ export def "main build-archives" [
 
 # some checks to ensure that the generated
 # output looks correct
-# 1. check that Sentinel_1, Sentinel_2, Reference_Maps.tar
+# 1. check that BigEarthNet-S1, BigEarthNet-S2, Reference_Maps.tar
 #    all contain matching data and NOT more than necessary!
 # tars have tile/tile-patch-id/patch-file data
 # 2. report the directory structure in some way or another
 #    that can be imported into the main directory
 
-# Check if the Sentinel-1/2 tar structure is as expected!
+# Check if the BigEarthNet-S1/S2 tar structure is as expected!
 def "check sentinel-tar" [tar_file: path expected_ids: list<string>] {
   # assert sentinel_files layout structure
   let sentinel_files = tar --list -f $tar_file | lines
@@ -364,13 +364,13 @@ export def "main check-output" [dataset_directory: path] {
   let patch_id_s1_data = ^duckdb -csv -c $"select patch_id, s1_name from read_parquet\(['($main_metadata_path)', '($other_metadata_path)']\);"
     | from csv
 
-  assert ("Sentinel_1.tar" | path exists)
-  assert ("Sentinel_2.tar" | path exists)
+  assert ("BigEarthNet-S1.tar" | path exists)
+  assert ("BigEarthNet-S2.tar" | path exists)
   assert ("Reference_Maps.tar" | path exists)
   # by checking if the tar files ONLY contain the expected files from the
   # mapping file, we implicitely check that they contain ONLY the same patches!
-  check sentinel-tar "Sentinel_1.tar" ($patch_id_s1_data | get s1_name)
-  check sentinel-tar "Sentinel_2.tar" ($patch_id_s1_data | get patch_id)
+  check sentinel-tar "BigEarthNet-S1.tar" ($patch_id_s1_data | get s1_name)
+  check sentinel-tar "BigEarthNet-S2.tar" ($patch_id_s1_data | get patch_id)
   check reference-map-tar "Reference_Maps.tar" ($patch_id_s1_data | get patch_id)
 
   log debug "Everything is aligned!"
