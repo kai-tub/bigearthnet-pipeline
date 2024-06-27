@@ -412,14 +412,14 @@ export def "main finalize" [
     }
   }
   main generate-metadata-files $target_dir $patch_id_label_mapping_file $patch_id_s2v1_mapping_file $patch_id_split_mapping_file $patch_id_country_mapping_file $old_s1s2_mapping_file $old_patches_with_cloud_and_shadow_file $old_patches_with_seasonal_snow_file
-  # let main_metadata_path = ($target_dir | path join "metadata.parquet")
-  # let other_metadata_path = ($target_dir | path join "metadata_for_patches_with_snow_cloud_or_shadow.parquet")
+  let main_metadata_path = ($target_dir | path join "metadata.parquet")
+  let other_metadata_path = ($target_dir | path join "metadata_for_patches_with_snow_cloud_or_shadow.parquet")
 
-  # let patch_id_s1_data = ^duckdb -csv -c $"select patch_id, s1_name from read_parquet\(['($main_metadata_path)', '($other_metadata_path)']\);"
-  #   | from csv
+  let patch_id_s1_data = ^duckdb -csv -c $"select patch_id, s1_name from read_parquet\(['($main_metadata_path)', '($other_metadata_path)']\);"
+    | from csv
     
-  # main build-archives $target_dir $s1_root_dir $s2_root_dir $reference_maps_root_dir $patch_id_s1_data
-  # main check-output $target_dir
+  main build-archives $target_dir $s1_root_dir $s2_root_dir $reference_maps_root_dir $patch_id_s1_data
+  main check-output $target_dir
 }
 
 # Main entrypoint. You probably want to call
