@@ -148,6 +148,15 @@ Note that the export directories will be created if they do not exist and
 that the input artifacts are already provided as environment variables and linked
 to the hashed version.
 
+> ![IMPORTANT]
+> The various metadata files are generated
+> independently from one another and _should not_ be used directly.
+> For example, the `patch_id_label_mapping.csv` only contains patches with a minimum area
+> covered by label information. Whereas the `patch_id_split_mapping.csv` contains
+> the split mapping for _all_ generated patches and will contain _more_
+> unique `patch_id` values than the one from the label mapping file.
+> For more details, see the code comments.
+
 > ![IMPORTANT] The command might take a considerable amount of time to complete, so make sure to
 > run it in a way that does not require an active ssh connection if necessary.
 
@@ -176,11 +185,7 @@ nix run .#ben-data-finalizer -- \
 
 ### Details
 It is important to note that this step not only aligns/adds the Sentinel-1 data
-but _also_ aligns the different outputs! The various metadata files are generated
-independently from one another and shouldn't be used directly!
-The `patch_id_label_mapping.csv` only contains patches with a minimum area
-covered by label information. The `patch_id_split_mapping.csv` contains
-the split mapping for _all_ generated patches. For more details, see the code comments.
+but _also_ aligns the different metadata files!
 
 ## Prepare for Distribution
 
