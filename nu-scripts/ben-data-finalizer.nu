@@ -63,6 +63,15 @@ export def "main generate-metadata-files" [
         msg: $"Execution failed:\n\tstdout:\n($status.stdout)\n\n\tstderr:\n($status.stderr)"
       }
     }
+    log debug "Finished generating metadata."
+    let log_location = "/tmp/bigearthnet-pipeline-metadata-generation.log"
+    $status.stdout | save -f $log_location
+    log debug $"Stored the logs of generation to ($log_location)"
+    # To better trace when the parquet file is changing
+    [metadata.parquet metadata_for_patches_with_snow_cloud_or_shadow.parquet] | each {
+      |p| 
+      {file: $p sha256: (open --raw $p | hash sha256)}
+    } | table | log debug $"Hashes:\n($in)"
   }
   rm -r $tmp_dir
 }

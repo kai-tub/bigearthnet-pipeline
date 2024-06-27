@@ -178,7 +178,27 @@ copy (
 	where
 		(not contains_seasonal_snow) and (not contains_cloud_or_shadow)
 	order by patch_id
-) to 'metadata.parquet';
+) to 'metadata.parquet'
+(format parquet, row_group_size 122_880, codec 'zstd'); -- enforce row-group-size as it was otherwise non-deterministic!
+
+--- if the hash changes again without really understanding why
+--- hopefully the following output can be used to better debug
+--- what is happening.
+
+select *
+from parquet_metadata('metadata.parquet')
+limit 1;
+
+select *
+from parquet_file_metadata('metadata.parquet')
+limit 1;
+
+select *
+from parquet_schema('metadata.parquet')
+limit 1;
+
+-- this one should be executed afterwards:
+-- .shell sha256sum 'metadata.parquet';
 
 copy (
 	select *
@@ -186,5 +206,6 @@ copy (
 	where
 		contains_seasonal_snow or contains_cloud_or_shadow
 	order by patch_id
-) to 'metadata_for_patches_with_snow_cloud_or_shadow.parquet';
+) to 'metadata_for_patches_with_snow_cloud_or_shadow.parquet'
+(format parquet, row_group_size 122_880, codec 'zstd');
 
