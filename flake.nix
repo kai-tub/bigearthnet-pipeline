@@ -10,6 +10,10 @@
       url = "github:kai-tub/nix-sen2cor";
     };
     nix-filter.url = "github:numtide/nix-filter";
+    zenodo-upload = {
+      url = "github:jhpoelen/zenodo-upload";
+      flake = false;
+    };
   };
 
   nixConfig = {
@@ -488,6 +492,16 @@
           };
         in ''
           exec nu --no-config-file ${p} "$@"
+        '';
+      };
+
+      zenodo-upload = pkgs.stdenvNoCC.mkDerivation {
+        name = "zenodo-upload";
+        src = inputs.zenodo-upload;
+        runtimeInputs = with pkgs; [curl jq gnused];
+        installPhase = ''
+          mkdir -p $out/bin
+          cp zenodo_upload.sh $out/bin/
         '';
       };
 
