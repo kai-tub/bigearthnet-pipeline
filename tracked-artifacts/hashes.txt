@@ -1,7 +1,11 @@
 md5 hashes:
 
+7043fc75bfa64b0951a727debf2cdba0  BigEarthNet-S1.tar
+a55eaa2cdf6a917e296bd6601ec1e348  BigEarthNet-S1.tar.zst
+9ebc8cf8c95ee3fa5f21572baf8bf0d3  BigEarthNet-S2.tar
+2245ed2d1a93f6ce637d839bc856396e  BigEarthNet-S2.tar.zst
 55687065e77b6d0b0f1ff604a6e7b49c  metadata.parquet
 fe31856f4986d446c9468b59d6387c91  metadata_for_patches_with_snow_cloud_or_shadow.parquet
+fefb5fe13ac59702a0a09a4bdece493c  Reference_Maps.tar
 95d85a222fa983faddcac51a19f28917  Reference_Maps.tar.zst
-ae935991112ee4eb6ec16217b6246e2f  Sentinel_1.tar.zst
-9c6f70ee09351e21b9306ec95f1b5a8d  Sentinel_2.tar.zst
+

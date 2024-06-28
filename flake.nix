@@ -495,13 +495,16 @@
         '';
       };
 
-      zenodo-upload = pkgs.stdenvNoCC.mkDerivation {
-        name = "zenodo-upload";
+      zenodo_upload = pkgs.stdenvNoCC.mkDerivation {
+        name = "zenodo_upload";
         src = inputs.zenodo-upload;
+        nativeBuildInputs = [pkgs.makeBinaryWrapper];
         runtimeInputs = with pkgs; [curl jq gnused];
         installPhase = ''
           mkdir -p $out/bin
-          cp zenodo_upload.sh $out/bin/
+          cp zenodo_upload.sh $out/bin/zenodo_upload
+          wrapProgram $out/bin/zenodo_upload \
+            --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [jq curl gnused])}
         '';
       };
 
