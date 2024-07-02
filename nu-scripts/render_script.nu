@@ -1,9 +1,9 @@
 # Takes the patch_id/name as input
 def rgb_files [] {
   [
-    $"($in)_B04.tiff"
-    $"($in)_B03.tiff"
-    $"($in)_B02.tiff"
+    $"($in)_B04.tif"
+    $"($in)_B03.tif"
+    $"($in)_B02.tif"
   ]
 }
 
@@ -18,7 +18,7 @@ def "main single" [
     let p = $tile | path join $patch_id
     cd $p
     # alternative contrast-stretch 1%x1%
-    let out_p = $"($out_dir)/($patch_id).tiff"
+    let out_p = $"($out_dir)/($patch_id).tif"
     print $"Writing to ($out_p)"
     # ^convert ...($patch_id | rgb_files)  -combine -normalize -scale 480x480 $out_p
     ^gdal_merge.py -separate ...($patch_id | rgb_files) -o $out_p

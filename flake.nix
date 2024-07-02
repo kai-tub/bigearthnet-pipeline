@@ -10,6 +10,10 @@
       url = "github:kai-tub/nix-sen2cor";
     };
     nix-filter.url = "github:numtide/nix-filter";
+    zenodo-upload = {
+      url = "github:jhpoelen/zenodo-upload";
+      flake = false;
+    };
   };
 
   nixConfig = {
@@ -430,6 +434,7 @@
               root = ./nu-scripts;
               include = [
                 "ben-data-finalizer.nu"
+                "ben-metadata-finalizer.sql"
               ];
             };
             installPhase = ''
@@ -487,6 +492,19 @@
           };
         in ''
           exec nu --no-config-file ${p} "$@"
+        '';
+      };
+
+      zenodo_upload = pkgs.stdenvNoCC.mkDerivation {
+        name = "zenodo_upload";
+        src = inputs.zenodo-upload;
+        nativeBuildInputs = [pkgs.makeBinaryWrapper];
+        runtimeInputs = with pkgs; [curl jq gnused];
+        installPhase = ''
+          mkdir -p $out/bin
+          cp zenodo_upload.sh $out/bin/zenodo_upload
+          wrapProgram $out/bin/zenodo_upload \
+            --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [jq curl gnused])}
         '';
       };
 

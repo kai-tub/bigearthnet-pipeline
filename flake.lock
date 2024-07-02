@@ -545,7 +545,8 @@
         "nix-filter": "nix-filter",
         "nixpkgs": "nixpkgs_2",
         "sen2cor": "sen2cor",
-        "systems": "systems_5"
+        "systems": "systems_5",
+        "zenodo-upload": "zenodo-upload"
       }
     },
     "sen2cor": {
@@ -639,6 +640,22 @@
       "original": {
         "owner": "nix-systems",
         "repo": "x86_64-linux",
+        "type": "github"
+      }
+    },
+    "zenodo-upload": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1709139092,
+        "narHash": "sha256-7h2HDr0v703pV1F9BksEyCPG/HUknH7vplw1/thJmEg=",
+        "owner": "jhpoelen",
+        "repo": "zenodo-upload",
+        "rev": "2f67cf22e8343128361bc1174aba2c861668a7be",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jhpoelen",
+        "repo": "zenodo-upload",
         "type": "github"
       }
     }

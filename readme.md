@@ -137,7 +137,7 @@ pueue add "\
   nix run .#ben-data-generator -- \
   --L2As-root-dir=<L2As_DOWNLOAD_PATH> \
   --export-patch-dir=<+TIFF_DIR> \
-  --export-segmentation-maps-dir=<+SEGMAPS_DIR> \
+  --export-reference-maps-dir=<+REFERENCE_MAPS_DIR> \
   --export-metadata-dir=<+METADATA_DIR> \
   --v1-metadata-dir=$BEN_V1_METADATA_DIR \
   --clc2018-gpkg-path=$CLC2018_PATH \
@@ -147,6 +147,15 @@ pueue add "\
 Note that the export directories will be created if they do not exist and
 that the input artifacts are already provided as environment variables and linked
 to the hashed version.
+
+> ![IMPORTANT]
+> The various metadata files are generated
+> independently from one another and _should not_ be used directly.
+> For example, the `patch_id_label_mapping.csv` only contains patches with a minimum area
+> covered by label information. Whereas the `patch_id_split_mapping.csv` contains
+> the split mapping for _all_ generated patches and will contain _more_
+> unique `patch_id` values than the one from the label mapping file.
+> For more details, see the code comments.
 
 > ![IMPORTANT] The command might take a considerable amount of time to complete, so make sure to
 > run it in a way that does not require an active ssh connection if necessary.
@@ -159,8 +168,8 @@ _merge_ the original Sentinel-1 data with the newly generated Sentinel-2 data.
 ```bash
 nix run .#ben-data-finalizer -- \
   --target-dir <ALIGNED_DIR> \
-  --s2-root-dir <PREV>/tiffs/ \
-  --segmentation-root-dir <PREV>/segmaps/ \
+  --s2-root-dir <+TIFF_DIR> \
+  --reference-maps-root-dir <+REFERENCE_MAPS_DIR> \
   --s1-root-dir <EXTRACTED_S1_DIR> \
   --patch-id-label-mapping-file <PREV>/metadata/patch_id_label_mapping.csv \
   --patch-id-s2v1-mapping-file <PREV>/metadata/patch_id_s2v1_mapping.csv \
@@ -176,11 +185,7 @@ nix run .#ben-data-finalizer -- \
 
 ### Details
 It is important to note that this step not only aligns/adds the Sentinel-1 data
-but _also_ aligns the different outputs! The various metadata files are generated
-independently from one another and shouldn't be used directly!
-The `patch_id_label_mapping.csv` only contains patches with a minimum area
-covered by label information. The `patch_id_split_mapping.csv` contains
-the split mapping for _all_ generated patches. For more details, see the code comments.
+but _also_ aligns the different metadata files!
 
 ## Prepare for Distribution
 
@@ -229,9 +234,9 @@ nix run .#tiff-hasher <path-to-patches> /tmp/patch_hashes.csv
 # if there is no output, then the files do not differ and the resulting tiff
 # files are identical to the previous run!
 diff /tmp/patch_hashes.csv.sha256 <repository>/tracked-artifacts/patch_hashes.csv.sha256
-# same for the segmentation patches
-nix run .#tiff-hasher <path-to-segmentation-dir> /tmp/segmaps_hashes.csv
-diff /tmp/segmaps_hashes.csv.sha256 <repository>/tracked-artifacts/segmaps_hashes.csv.sha256
+# same for the reference-maps patches
+nix run .#tiff-hasher <path-to-reference-maps-dir> /tmp/reference_maps.csv
+diff /tmp/reference_maps_hashes.csv.sha256 <repository>/tracked-artifacts/reference_maps_hashes.csv.sha256
 ```
 
 The specific CSV files are not tracked in `Git` but the associated checksum file is.

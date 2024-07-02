@@ -513,7 +513,7 @@ create table tile_border_split (
 -- How many patches contain FULLY labeled areas after rasterization of U2018?
 -- -> This is most likely a join operation at the end to filter the final patches
 -- 		as this could also happen AFTER grouping into train/val/test split buckets!
--- 		Also has the nice 'benefit' that it theoretically allows the same split strategy to be used by segmentation with UNLABELED areas
+-- 		Also has the nice 'benefit' that it theoretically allows the same split strategy to be used by reference maps with UNLABELED areas
 -- -> Theoretically, same holds for alignment & valid patch tests. 
 -- -> Simply use patches_geometrical
 -- Formula for a 2/4 train, 1/4 val, 1/4 test split:
@@ -1026,13 +1026,13 @@ insert into clc_code_18_to_ben19_name values
 	('999'::clc_code_18, 'UNLABELED');
 
 -- clc_code_18_to_8bit_value
--- Thought about making a 'smarter' mapping before exporting the segmentation
+-- Thought about making a 'smarter' mapping before exporting the reference-maps
 -- maps as TIFFs but in the end,
 -- it is never intuitiv and one should always just look up the
 -- values and color it accordingly
 -- Even if the patch is encoded with uint16 although uint8 would
 -- be sufficient after remapping, it is just not that intuitiv
--- and compressing the segmentation maps is actually not _that_ bad...
+-- and compressing the reference-maps maps is actually not _that_ bad...
 -- Otherwise, the alternative would be to map the values from '111'...'999'
 -- to increasing integers and then keeping track of these values in all
 -- down-stream tasks...
@@ -1436,7 +1436,7 @@ as $$
 		where (p.l2a_patch_id).product_id = id
 			and p.l2a_patch_id in (select patch_id from tile_patches_validation_and_alignment_result)
 	)
-	select pretty_patch_name || '_' || pretty_band_name || '.tiff' as file_name,
+	select pretty_patch_name || '_' || pretty_band_name || '.tif' as file_name,
 	encode(
 		st_astiff(
 			rast,
@@ -1591,7 +1591,7 @@ as $$
 		select *
 		-- Do not forget we have multiple rasters per patch-id!
 		-- the reference patches should have 10m resolution, could be configurable by user
-		-- it is just important that those pixel align with the segmentation maps
+		-- it is just important that those pixel align with the reference-maps maps
 		from sentinel2_l2a_rasters s
 			where s.l2a_product_id = ref_l2a_product_id
 				and dataset_name like '10m%' 
@@ -1653,7 +1653,7 @@ as $$
 	select patch_identifier_to_text(
 		patch_id, 
 		derive_s2_tile_patches_pad_size(square_side_length_in_m)
-	) || '_segmentation.tiff' as file_name,
+	) || '_reference_map.tif' as file_name,
 		encode(st_asgdalraster(
 				rast,
 				-- st_union(rast),
@@ -1674,7 +1674,7 @@ create table tile_patches_u2018_overlay_rasterization_geoms (
 	-- maybe add id back in the future if necessary for further analysis
 	-- but for now, the idea is to use the 'real' geometrical data
 	-- and not the rasterized output for further analysis. This is only required
-	-- to understand what values have been exported in the segmentation maps
+	-- to understand what values have been exported in the reference-maps
 	-- no, I should already use it to ensure that I am not duplicating data!
 	geom_id int,
 	geom geometry check (st_area(geom) > 0 and st_isvalid(geom) and st_srid(geom) <> 0),
@@ -1684,7 +1684,7 @@ create table tile_patches_u2018_overlay_rasterization_geoms (
 -- or would that considerably slow down the (parallel) data ingestion?
 -- 
 
--- TODO: Do not forget! After the segmentation there are only 121 tiles available!
+-- TODO: Do not forget! After the reference-maps there are only 121 tiles available!
 -- See the output of:
 -- select distinct( (patch_id).product_id )
 -- from tile_patches_geometrical_u2018_overlay_result
@@ -1798,7 +1798,7 @@ $$;
 --	with s as (select *
 --		-- Do not forget we have multiple rasters per patch-id!
 --		-- the reference patches should have 10m resolution, could be configurable by user
---		-- it is just important that those pixel align with the segmentation maps
+--		-- it is just important that those pixel align with the reference-maps
 --		from sentinel2_l2a_rasters s
 --			where dataset_name like '10m%' 
 --	), rasters as (

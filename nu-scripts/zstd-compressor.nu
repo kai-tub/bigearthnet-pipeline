@@ -52,7 +52,7 @@ export def "main benchmark" [inp_file: path] {
 
 # Compress an individual file with the tuned zstd options
 # or if pointed to a directory, will compress all files inside of the
-# directory (non-recursively & skipping over directories!). 
+# directory (non-recursively & skipping over directories & parquet files!). 
 # The output will overwrite existing files!
 # If an output path is given, then the resulting `zst` file(s) will be
 # written into that directory.
@@ -63,7 +63,7 @@ export def main [
   let inp_arg = if (($inp | path type) == "file") {
     $inp
   } else {
-    ls $inp | get name | save -f /tmp/zstd_files.txt
+    ls $inp | where {|x| not ($x.name | str ends-with "parquet")} | get name | save -f /tmp/zstd_files.txt
     "--filelist=/tmp/zstd_files.txt" 
   }
   # auto-derive output file name

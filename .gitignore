@@ -1,5 +1,6 @@
 # The main state directory of postgres
 unused/
+trial/
 vqa/src/inputs/
 duck
 *.duck
@@ -39,5 +40,6 @@ sub_json/
 # data that is too large
 /tracked-artifacts/patch_hashes.csv
 /tracked-artifacts/segmaps_hashes.csv
+/tracked-artifacts/reference_maps_hashes.csv
 
 
