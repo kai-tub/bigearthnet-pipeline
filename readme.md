@@ -1,6 +1,6 @@
 # BigEarthNet v2 Pipeline
 
-<img alt="Powered by nix" src="https://img.shields.io/badge/Powered%20By-Nix-blue?style=flat&logo=snowflake">
+<img alt="Powered by nix" src="https://img.shields.io/badge/Powered%20By-Nix-blue?style=flat&logo=snowflake"> <a href="https://doi.org/10.5281/zenodo.10891137"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891137.svg" alt="DOI"></a> <a href="https://arxiv.org/abs/2407.03653"><img src="https://img.shields.io/badge/arXiv-2407.03653-b31b1b.svg" alt="arxiv link"></a>
 
 ## Overview
 
@@ -97,11 +97,6 @@ To convert the Sentinel-2 L1C tiles to the L2A data product, run the following c
 nix run .#ben-s2-l1c-to-l2a-converter-runner -- <download-dir> --export-dir <l2a-dir>
 ```
 
-Similar to the download command above, this command will continue to work through the
-queue even if the main process is interrupted. The command is quite CPU-intensive
-and it might take a couple of hours until it is finished.
-The progress can be tracked by checking `pueue status --group sentinel-l1c-to-l2a`
-
 Similar to the download program mentioned earlier, this program
 will keep running through the queue even if the main program is interrupted.
 It is a quite CPU-intensive task and may take a few hours to complete.
@@ -148,7 +143,7 @@ Note that the export directories will be created if they do not exist and
 that the input artifacts are already provided as environment variables and linked
 to the hashed version.
 
-> ![IMPORTANT]
+> [!IMPORTANT]
 > The various metadata files are generated
 > independently from one another and _should not_ be used directly.
 > For example, the `patch_id_label_mapping.csv` only contains patches with a minimum area
@@ -157,7 +152,8 @@ to the hashed version.
 > unique `patch_id` values than the one from the label mapping file.
 > For more details, see the code comments.
 
-> ![IMPORTANT] The command might take a considerable amount of time to complete, so make sure to
+> [!IMPORTANT] 
+> The command might take a considerable amount of time to complete, so make sure to
 > run it in a way that does not require an active ssh connection if necessary.
 
 ## Finalizing the dataset
@@ -246,7 +242,7 @@ MBs in size.
 #### devenv up
 
 If you see errors such as `FATAL: could not map anonymous shared memory`, it means
-that the selected `XXX` size is too large and should be adjusted to according to the
+that the selected `shared_buffers` and `effective_cache_size` size is too large and should be adjusted to according to the
 available RAM of the server hosting the database.
 
 If you see errors such as `start http server on :9999 failed error="listen tcp :9999: bind: address already in use"`,
@@ -261,6 +257,23 @@ job is failing and investigate the error.
 If no additional information is printed, then nix is probably running via `nix-portable`
 and adding an explicit shell might be required, such as: `nix develop .#tile-downloader-env --command sh`
 
-> [!IMPORTANT]: If you run `devenv up` it _must_ be run from the root directory!
+> [!IMPORTANT]
+> If you run `devenv up` it _must_ be run from the root directory!
 > Otherwise the `state` directory will be created inside the sub-directory and cause issues!
+
+## Citation
+
+If you use this work, please cite:
+
+```bibtex
+@article{clasen2024refinedbigearthnet,
+  title={reBEN: Refined BigEarthNet Dataset for Remote Sensing Image Analysis},
+  author={Clasen, Kai Norman and Hackel, Leonard and Burgert, Tom and Sumbul, Gencer and Demir, Beg{\"u}m and Markl, Volker},
+  year={2024},
+  eprint={2407.03653},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2407.03653},
+}
+```
 
