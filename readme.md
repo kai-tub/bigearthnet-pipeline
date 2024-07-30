@@ -1,6 +1,24 @@
 # BigEarthNet v2 Pipeline
 
+> This repository contains the code for creating the BigEarthNet v2 dataset in a reproducible manner.
+
 <img alt="Powered by nix" src="https://img.shields.io/badge/Powered%20By-Nix-blue?style=flat&logo=snowflake"> <a href="https://doi.org/10.5281/zenodo.10891137"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891137.svg" alt="DOI"></a> <a href="https://arxiv.org/abs/2407.03653"><img src="https://img.shields.io/badge/arXiv-2407.03653-b31b1b.svg" alt="arxiv link"></a>
+
+## Citation
+
+If you use this work, please cite:
+
+```bibtex
+@article{clasen2024refinedbigearthnet,
+  title={reBEN: Refined BigEarthNet Dataset for Remote Sensing Image Analysis},
+  author={Clasen, Kai Norman and Hackel, Leonard and Burgert, Tom and Sumbul, Gencer and Demir, Beg{\"u}m and Markl, Volker},
+  year={2024},
+  eprint={2407.03653},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2407.03653},
+}
+```
 
 ## Overview
 
@@ -261,19 +279,4 @@ and adding an explicit shell might be required, such as: `nix develop .#tile-dow
 > If you run `devenv up` it _must_ be run from the root directory!
 > Otherwise the `state` directory will be created inside the sub-directory and cause issues!
 
-## Citation
-
-If you use this work, please cite:
-
-```bibtex
-@article{clasen2024refinedbigearthnet,
-  title={reBEN: Refined BigEarthNet Dataset for Remote Sensing Image Analysis},
-  author={Clasen, Kai Norman and Hackel, Leonard and Burgert, Tom and Sumbul, Gencer and Demir, Beg{\"u}m and Markl, Volker},
-  year={2024},
-  eprint={2407.03653},
-  archivePrefix={arXiv},
-  primaryClass={cs.CV},
-  url={https://arxiv.org/abs/2407.03653},
-}
-```
 
