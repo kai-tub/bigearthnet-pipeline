@@ -8,8 +8,10 @@ const COMMON_TAR_OPTS = [
   "--group=0"
   # I would prefer the following time but it triggers warnings on most tar systems
   # as it is a 'unlikely timestamp'...
-  # "--mtime=1970-01-01 00:00:00" 
-  "--mtime=2024-01-01 00:00:00" 
+  # "--mtime=1970-01-01 00:00:00Z"
+  # The dataset was published WITHOUT setting the timezone Z, but as far as I can tell
+  # the server this was executed on had UTC set, so this change _should_ generate the same output.
+  "--mtime=2024-01-01 00:00:00Z" 
   "--numeric-owner"
   "--format=gnu"
 ]
